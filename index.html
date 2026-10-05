@@ -1525,7 +1525,7 @@ function iDL(){
 /* ===== YAZDIRMA: A4 yatay, yan yana 2 adet üretim iş takip formu ===== */
 function isForm(e){
   const C=icols(e),L=e.log||{},bos=n=>{let r="";for(let i=0;i<n;i++)r+="<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>";return r};
-  const satir=(k,ad)=>{const g=L[k]||{};return `<tr><th>${ad}</th><td>${g.zaman?esc(tarih(g.zaman)):""}</td><td>${g.kg!=null?esc(fmt(g.kg)):""}</td><td>${esc(g.kim||"")}</td><td></td></tr>`};
+  const satir=(k,ad)=>{if(k==="depo")return `<tr><th>DEPO<br><span style="font-weight:700;font-size:8.5pt">Çıkan Kg / Paket Sayısı</span></th><td colspan="3"></td></tr>`;const g=L[k]||{};return `<tr><th>${ad}</th><td>${g.zaman?esc(tarih(g.zaman)):""}</td><td>${esc(g.kim||"")}</td><td></td></tr>`};
   const st=[["ekstruder","EKSTRUDER"]].concat(e.baskiVar?[["baski","BASKI"]]:[]).concat([["kesim","KESİM"],["depo","DEPO"]]);
   const topKg=C.reduce((t,c)=>t+(+c.kg||0),0);
   const cr=C.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(fmt(c.kg))}</b></td><td>${esc(c.en||"")}</td><td>${esc(c.mikron||"")}</td><td>${esc(c.korona||"")}</td><td>${esc(c.boy||"")}</td></tr>`).join("");
@@ -1540,7 +1540,7 @@ function isForm(e){
   <tr><th>Σ</th><th>${esc(fmt(topKg))}</th><td colspan="4"></td></tr></table>
   <div class="pn"><b>Üretim Notu:</b> ${esc(e.notU||"")}</div>
   ${e.baskiVar||e.notB?`<div class="pn"><b>Baskı:</b> ${esc(e.urunAdi||"")} ${e.renk?"· "+esc(e.renk):""}${e.notB?"<br>"+esc(e.notB):""}</div>`:""}
-  <table class="pt pc ps"><tr><th>Aşama</th><th>Tarih</th><th>Çıkan Kg</th><th>Operatör</th><th>İmza / Not</th></tr>${st.map(x=>satir(x[0],x[1])).join("")}</table>
+  <table class="pt pc ps"><tr><th>Aşama</th><th>Tarih</th><th>Operatör</th><th>İmza / Not</th></tr>${st.map(x=>satir(x[0],x[1])).join("")}</table>
   </div>`;
 }
 function isYazdir(e){
