@@ -407,6 +407,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <input id="iBU" placeholder="Ürün adı (ATLET)" style="margin-top:6px">
   <input id="iRenk" placeholder="Baskı rengi / klişe" style="margin-top:6px">
   <textarea id="iNtB" rows="2" placeholder="Baskı-kesim notu (H.T., 25 kg'lık torbalanacak...)" style="margin-top:6px"></textarea>
+  <label class="chip" style="margin-top:10px"><input type="checkbox" id="iYz" checked>🖨️ Kaydedince yazdır (A4 yatay, 2 adet yan yana)</label>
   <div id="iDL"></div>
   <div class="err" id="iE" style="margin-top:8px"></div>
   <div style="display:flex;gap:8px"><button class="btn b6" id="iNo2">Vazgeç</button><button class="btn b1" id="iOk">Kaydet</button></div>
@@ -860,7 +861,7 @@ function kkart(k){
     ${isAdmin()?kFyHtml(k):""}
     ${k.not?`<div class="note">📌 ${esc(k.not)}</div>`:""}
     <div class="acts s"><button class="btn b3" data-a="in" data-id="${id}">＋ Giriş</button><button class="btn b2" data-a="out" data-id="${id}">− Çıkış</button>
-    <button class="btn b6" data-a="gec" data-id="${id}">📜 Geçmiş</button><button class="btn b6" data-a="edit" data-id="${id}">✏️ Düzenle</button>
+    <button class="btn b6" data-a="gec" data-id="${id}">📜 Geçmiş</button><button class="btn b6" data-a="yaz" data-id="${id}">🖨️ Yazdır</button><button class="btn b6" data-a="edit" data-id="${id}">✏️ Düzenle</button>
     ${canDel?`<button class="btn b5 i" data-a="del" data-id="${id}">🗑️</button>`:""}</div>
   </div></div>`;
 }
@@ -1485,7 +1486,8 @@ $("iList").onclick=async ev=>{
   const b=ev.target.closest("button[data-a]");if(!b)return;const e=isE.find(x=>x.id===b.dataset.id);if(!e)return;
   const a=b.dataset.a,o=asOrd(e),i=o.indexOf(e.asama),TS=firebase.database.ServerValue.TIMESTAMP;
   try{
-    if(a==="edit")iAc(e);
+    if(a==="yaz")isYazdir(e);
+    else if(a==="edit")iAc(e);
     else if(a==="geri"&&i>0)await db.ref("isEmirleri/"+e.id).update({asama:o[i-1]});
     else if(a==="del"&&confirm(e.no+" silinsin mi?"))await db.ref("isEmirleri/"+e.id).remove();
     else if(a==="ileri"&&i>=0&&i<o.length-1){
@@ -1520,11 +1522,39 @@ function iDL(){
   $("iDL").innerHTML=top.map(f=>mk(f,uniq(isE.map(e=>e[f])))).concat(col.map(f=>mk(f,uniq(isE.flatMap(e=>icols(e).map(c=>c[f])))))).join("");
   [["iMu","musteri"],["iAdi","isAdi"],["iSt","stok"],["iFx","fx"],["iFo","formul"],["iBU","urunAdi"],["iRenk","renk"]].forEach(([i,f])=>$(i).setAttribute("list","dl_"+f));
 }
+/* ===== YAZDIRMA: A4 yatay, yan yana 2 adet üretim iş takip formu ===== */
+function isForm(e){
+  const C=icols(e),L=e.log||{},bos=n=>{let r="";for(let i=0;i<n;i++)r+="<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>";return r};
+  const satir=(k,ad)=>{const g=L[k]||{};return `<tr><th>${ad}</th><td>${g.zaman?esc(tarih(g.zaman)):""}</td><td>${g.kg!=null?esc(fmt(g.kg)):""}</td><td>${esc(g.kim||"")}</td><td></td></tr>`};
+  const st=[["ekstruder","EKSTRUDER"]].concat(e.baskiVar?[["baski","BASKI"]]:[]).concat([["kesim","KESİM"],["depo","DEPO"]]);
+  const topKg=C.reduce((t,c)=>t+(+c.kg||0),0);
+  const cr=C.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(fmt(c.kg))}</b></td><td>${esc(c.en||"")}</td><td>${esc(c.mikron||"")}</td><td>${esc(c.korona||"")}</td><td>${esc(c.boy||"")}</td></tr>`).join("");
+  return `<div class="pf">
+  <div class="ph"><div><div class="pfirma">MAG AMBALAJ</div><div class="pbas">ÜRETİM İŞ TAKİP FORMU</div></div><div class="pno">${esc(e.no||"")}</div></div>
+  <table class="pt"><tr><th>Sipariş Tarihi</th><td>${esc(trDate(e.spTarih))}</td><th>F / X</th><td>${esc(e.fx||"")}</td></tr>
+  <tr><th>Müşteri</th><td colspan="3"><b>${esc(e.musteri||"")}</b></td></tr>
+  <tr><th>İşin Adı</th><td colspan="3">${esc(e.isAdi||"")}</td></tr>
+  <tr><th>Stok Adı</th><td colspan="3">${esc(e.stok||"")}</td></tr>
+  <tr><th>Ürün Formülü</th><td colspan="3">${esc(e.formul||"")}</td></tr></table>
+  <table class="pt pc"><tr><th>#</th><th>Kg</th><th>En</th><th>Mikron</th><th>Korona</th><th>Boy/Kazan</th></tr>${cr}
+  <tr><th>Σ</th><th>${esc(fmt(topKg))}</th><td colspan="4"></td></tr></table>
+  <div class="pn"><b>Üretim Notu:</b> ${esc(e.notU||"")}</div>
+  ${e.baskiVar||e.notB?`<div class="pn"><b>Baskı:</b> ${esc(e.urunAdi||"")} ${e.renk?"· "+esc(e.renk):""}${e.notB?"<br>"+esc(e.notB):""}</div>`:""}
+  <table class="pt pc ps"><tr><th>Aşama</th><th>Tarih</th><th>Çıkan Kg</th><th>Operatör</th><th>İmza / Not</th></tr>${st.map(x=>satir(x[0],x[1])).join("")}</table>
+  </div>`;
+}
+function isYazdir(e){
+  const h=isForm(e);
+  $("prn").innerHTML=`<div class="prow">${h}<div class="pcut"></div>${h}</div>`;
+  const t=document.title;document.title=(e.no||"is-emri")+" - iş takip formu";
+  window.onafterprint=()=>{document.title=t;$("prn").innerHTML=""};
+  setTimeout(()=>window.print(),150);
+}
 function iAc(e){
   iEdit=e||null;const v=e||{},C=e?icols(e):[];$("iT").textContent=e?"İş emrini düzenle":"Yeni iş emri";$("iE").textContent="";
   [["iNo","no"],["iMu","musteri"],["iAdi","isAdi"],["iSt","stok"],["iFx","fx"],["iFo","formul"],["iNtU","notU"],["iBU","urunAdi"],["iRenk","renk"],["iNtB","notB"]].forEach(([i,f])=>$(i).value=v[f]||"");
   if(!e)$("iNo").value=iNext();iDL();
-  $("iTr").value=v.spTarih||bugun();$("iBv").checked=!!v.baskiVar;
+  $("iTr").value=v.spTarih||bugun();$("iBv").checked=!!v.baskiVar;$("iYz").checked=!e;
   $("iCols").innerHTML=[0,1,2].map(n=>{const c=C[n]||{};return `<div style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px;margin-bottom:6px"><b style="font-size:12px">${n+1}. ebat</b><div class="grid" style="margin-top:4px">`+[["kg","Kg"],["en","En (42*14*14)"],["mikron","Mikron"],["korona","Korona (bomlu/bomsuz)"],["boy","Boy / kazan (cm)"]].map(([f,p])=>`<input data-c="${n}" data-f="${f}" list="dl_${f}" placeholder="${p}"${f==="kg"?' type="number" inputmode="decimal" min="0" step="any"':""} value="${esc(c[f]??"")}">`).join("")+`</div></div>`}).join("");
   $("iDlg").showModal();
 }
@@ -1542,7 +1572,7 @@ $("iOk").onclick=async()=>{
   try{
     if(iEdit){d.duzenleyen=ad();if(!d.baskiVar&&iEdit.asama==="baski")d.asama="kesim";await db.ref("isEmirleri/"+iEdit.id).update(d)}
     else{Object.assign(d,{asama:"ekstruder",ekleyen:ad(),ekleyenUid:user.uid,eklenmeTarihi:firebase.database.ServerValue.TIMESTAMP});await db.ref("isEmirleri").push().set(d)}
-    $("iDlg").close();toast("İş emri kaydedildi");
+    const yz=$("iYz").checked;$("iDlg").close();toast("İş emri kaydedildi");if(yz)setTimeout(()=>isYazdir(d),250);
   }catch(e){err(errText(e))}
   $("iOk").disabled=false;
 };
@@ -1612,5 +1642,30 @@ try{
   }catch(err){console.error("saat:",err)}
 })();
 </script>
+<style>
+#prn{display:none}
+@media print{
+  @page{size:A4 landscape;margin:6mm}
+  html,body{background:#fff!important;margin:0!important;padding:0!important}
+  body>*:not(#prn){display:none!important}
+  #prn{display:block!important}
+  .prow{display:flex;gap:0;width:285mm;height:196mm;color:#000;font-family:Arial,Helvetica,sans-serif}
+  .pf{flex:1 1 0;width:0;padding:0 4mm;box-sizing:border-box;font-size:9.5pt}
+  .pcut{flex:0 0 0;border-left:1.5px dashed #777}
+  .ph{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #000;padding-bottom:2mm;margin-bottom:2.5mm}
+  .pfirma{font-size:11pt;font-weight:900;letter-spacing:.5px}
+  .pbas{font-size:13pt;font-weight:900}
+  .pno{font-size:20pt;font-weight:900;border:2px solid #000;padding:1mm 3mm}
+  .pt{width:100%;border-collapse:collapse;margin-bottom:2.5mm;table-layout:auto}
+  .pt th,.pt td{border:1px solid #000;padding:1.6mm 1.8mm;text-align:left;vertical-align:middle;font-size:9.5pt;word-break:break-word}
+  .pt th{background:#e5e5e5!important;font-weight:800;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pc th,.pc td{text-align:center}
+  .pc td{font-size:10.5pt}
+  .ps td,.ps th{height:11mm}
+  .ps th{text-align:left}
+  .pn{border:1px solid #000;padding:2mm;margin-bottom:2.5mm;min-height:11mm;font-size:9.5pt}
+}
+</style>
+<div id="prn"></div>
 </body>
 </html>
