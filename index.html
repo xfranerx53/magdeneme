@@ -256,7 +256,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 
   <div id="pIs" class="hide">
     <button class="btn b1" style="margin:0 0 10px" id="iAdd">＋ Yeni iş emri aç</button>
-    <div style="font-size:10px;color:#94a3b8;margin:-4px 0 8px">Sürüm: yazdırma-v5 (iş emri kartlarında 🖨️ Yazdır butonu var)</div>
+    <div style="font-size:10px;color:#94a3b8;margin:-4px 0 8px">Sürüm: yazdırma-v6 (iş emri kartlarında 🖨️ Yazdır butonu var)</div>
     <input id="iq" placeholder="🔍 Seri no, müşteri, stok adı ara..." style="margin-bottom:8px">
     <div class="tabs stabs" id="iTabs"></div>
     <div id="iList"></div>
@@ -1527,7 +1527,6 @@ function isForm(e){
   const C=icols(e),L=e.log||{},bos=n=>{let r="";for(let i=0;i<n;i++)r+="<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>";return r};
   const satir=(k,ad)=>{if(k==="depo"){const R=(C.length?C:[{}]).map((c,i)=>`<tr><th>${i+1}${c.en?" · "+esc(c.en):""}</th><td></td><td></td></tr>`).join("");return `<tr><th>DEPO</th><td colspan="3" style="padding:0"><table class="pd"><tr><th>Ebat</th><th>Çıkan Kg</th><th>Paket Sayısı</th></tr>${R}</table></td></tr>`}const g=L[k]||{};return `<tr><th>${ad}</th><td></td><td></td><td></td></tr>`};
   const st=[["ekstruder","EKSTRUDER"]].concat(e.baskiVar?[["baski","BASKI"]]:[]).concat([["kesim","KESİM"],["depo","DEPO"]]);
-  const topKg=C.reduce((t,c)=>t+(+c.kg||0),0);
   const cr=C.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(fmt(c.kg))}</b></td><td>${esc(c.en||"")}</td><td>${esc(c.mikron||"")}</td><td>${esc(c.korona||"")}</td><td>${esc(c.boy||"")}</td></tr>`).join("");
   return `<div class="pf">
   <div class="ph"><div><div class="pfirma">MAG AMBALAJ</div><div class="pbas">ÜRETİM İŞ TAKİP FORMU</div></div><div class="pno">${esc(e.no||"")}</div></div>
@@ -1536,8 +1535,7 @@ function isForm(e){
   <tr><th>İşin Adı</th><td colspan="3">${esc(e.isAdi||"")}</td></tr>
   <tr><th>Stok Adı</th><td colspan="3">${esc(e.stok||"")}</td></tr>
   <tr><th>Ürün Formülü</th><td colspan="3">${esc(e.formul||"")}</td></tr></table>
-  <table class="pt pc"><tr><th>#</th><th>Kg</th><th>En</th><th>Mikron</th><th>Korona</th><th>Boy/Kazan</th></tr>${cr}
-  <tr><th>Σ</th><th>${esc(fmt(topKg))}</th><td colspan="4"></td></tr></table>
+  <table class="pt pc"><tr><th>#</th><th>Kg</th><th>En</th><th>Mikron</th><th>Korona</th><th>Boy/Kazan</th></tr>${cr}</table>
   <div class="pn"><b>Üretim Notu:</b> ${esc(e.notU||"")}</div>
   ${e.baskiVar||e.notB?`<div class="pn"><b>Baskı:</b> ${esc(e.urunAdi||"")} ${e.renk?"· "+esc(e.renk):""}${e.notB?"<br>"+esc(e.notB):""}</div>`:""}
   <table class="pt pc ps"><tr><th>Aşama</th><th>Tarih</th><th>Operatör</th><th>Biten Ürün</th></tr>${st.map(x=>satir(x[0],x[1])).join("")}</table>
