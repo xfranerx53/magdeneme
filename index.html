@@ -407,6 +407,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <input id="iBU" placeholder="Ürün adı (ATLET)" style="margin-top:6px">
   <input id="iRenk" placeholder="Baskı rengi / klişe" style="margin-top:6px">
   <textarea id="iNtB" rows="2" placeholder="Baskı-kesim notu (H.T., 25 kg'lık torbalanacak...)" style="margin-top:6px"></textarea>
+  <div id="iDL"></div>
   <div class="err" id="iE" style="margin-top:8px"></div>
   <div style="display:flex;gap:8px"><button class="btn b6" id="iNo2">Vazgeç</button><button class="btn b1" id="iOk">Kaydet</button></div>
 </dialog>
@@ -1505,11 +1506,26 @@ $("iList").onclick=async ev=>{
     }
   }catch(err){toast(errText(err))}
 };
+/* Önceki iş emrinden sonraki seri no: MG-0945 -> MG-0946 */
+function iNext(){
+  const son=isE[0]&&isE[0].no;const m=son&&String(son).match(/^(.*?)(\d+)$/);if(!m)return"";
+  let n=+m[2];const mk=x=>m[1]+String(x).padStart(m[2].length,"0");
+  while(isE.some(x=>x.no===mk(n+1)))n++;return mk(n+1);
+}
+/* Geçmiş girişlerden öneri listeleri (yazdıkça filtrelenir) */
+function iDL(){
+  const uniq=a=>{const s=new Set(),o=[];a.forEach(v=>{v=String(v==null?"":v).trim();const k=v.toLowerCase();if(v&&!s.has(k)){s.add(k);o.push(v)}});return o};
+  const mk=(f,a)=>`<datalist id="dl_${f}">${a.map(v=>`<option value="${esc(v)}">`).join("")}</datalist>`;
+  const top=["musteri","isAdi","stok","fx","formul","urunAdi","renk"],col=["en","mikron","korona","boy"];
+  $("iDL").innerHTML=top.map(f=>mk(f,uniq(isE.map(e=>e[f])))).concat(col.map(f=>mk(f,uniq(isE.flatMap(e=>icols(e).map(c=>c[f])))))).join("");
+  [["iMu","musteri"],["iAdi","isAdi"],["iSt","stok"],["iFx","fx"],["iFo","formul"],["iBU","urunAdi"],["iRenk","renk"]].forEach(([i,f])=>$(i).setAttribute("list","dl_"+f));
+}
 function iAc(e){
   iEdit=e||null;const v=e||{},C=e?icols(e):[];$("iT").textContent=e?"İş emrini düzenle":"Yeni iş emri";$("iE").textContent="";
   [["iNo","no"],["iMu","musteri"],["iAdi","isAdi"],["iSt","stok"],["iFx","fx"],["iFo","formul"],["iNtU","notU"],["iBU","urunAdi"],["iRenk","renk"],["iNtB","notB"]].forEach(([i,f])=>$(i).value=v[f]||"");
+  if(!e)$("iNo").value=iNext();iDL();
   $("iTr").value=v.spTarih||bugun();$("iBv").checked=!!v.baskiVar;
-  $("iCols").innerHTML=[0,1,2].map(n=>{const c=C[n]||{};return `<div style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px;margin-bottom:6px"><b style="font-size:12px">${n+1}. ebat</b><div class="grid" style="margin-top:4px">`+[["kg","Kg"],["en","En (42*14*14)"],["mikron","Mikron"],["korona","Korona (bomlu/bomsuz)"],["boy","Boy / kazan (cm)"]].map(([f,p])=>`<input data-c="${n}" data-f="${f}" placeholder="${p}"${f==="kg"?' type="number" inputmode="decimal" min="0" step="any"':""} value="${esc(c[f]??"")}">`).join("")+`</div></div>`}).join("");
+  $("iCols").innerHTML=[0,1,2].map(n=>{const c=C[n]||{};return `<div style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px;margin-bottom:6px"><b style="font-size:12px">${n+1}. ebat</b><div class="grid" style="margin-top:4px">`+[["kg","Kg"],["en","En (42*14*14)"],["mikron","Mikron"],["korona","Korona (bomlu/bomsuz)"],["boy","Boy / kazan (cm)"]].map(([f,p])=>`<input data-c="${n}" data-f="${f}" list="dl_${f}" placeholder="${p}"${f==="kg"?' type="number" inputmode="decimal" min="0" step="any"':""} value="${esc(c[f]??"")}">`).join("")+`</div></div>`}).join("");
   $("iDlg").showModal();
 }
 $("iAdd").onclick=()=>iAc(null);
