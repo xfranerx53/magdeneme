@@ -407,7 +407,6 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <input id="iBU" placeholder="Ürün adı (ATLET)" style="margin-top:6px">
   <input id="iRenk" placeholder="Baskı rengi / klişe" style="margin-top:6px">
   <textarea id="iNtB" rows="2" placeholder="Baskı-kesim notu (H.T., 25 kg'lık torbalanacak...)" style="margin-top:6px"></textarea>
-  <label class="chip" style="margin-top:10px"><input type="checkbox" id="iYz" checked>🖨️ Kaydedince yazdır (A4 yatay, 2 adet yan yana)</label>
   <div id="iDL"></div>
   <div class="err" id="iE" style="margin-top:8px"></div>
   <div style="display:flex;gap:8px"><button class="btn b6" id="iNo2">Vazgeç</button><button class="btn b1" id="iOk">Kaydet</button></div>
@@ -1544,17 +1543,23 @@ function isForm(e){
   </div>`;
 }
 function isYazdir(e){
-  const h=isForm(e);
-  $("prn").innerHTML=`<div class="prow">${h}<div class="pcut"></div>${h}</div>`;
+  const h=isForm(e),P=$("prn");
+  P.innerHTML=`<div class="prow">${h}<div class="pcut"></div>${h}</div>`;
+  /* Sayfaya sığan en büyük yazı boyutunu bul (ekranda ölç, sonra yazdır) */
+  P.classList.add("meas");
+  const f=P.querySelector(".pf"),hedef=192*96/25.4;
+  let z=1.25;P.style.setProperty("--z",z);
+  while(f.offsetHeight>hedef&&z>0.6){z=Math.round((z-0.03)*100)/100;P.style.setProperty("--z",z)}
+  P.classList.remove("meas");
   const t=document.title;document.title=(e.no||"is-emri")+" - iş takip formu";
-  window.onafterprint=()=>{document.title=t;$("prn").innerHTML=""};
+  window.onafterprint=()=>{document.title=t;P.innerHTML=""};
   setTimeout(()=>window.print(),150);
 }
 function iAc(e){
   iEdit=e||null;const v=e||{},C=e?icols(e):[];$("iT").textContent=e?"İş emrini düzenle":"Yeni iş emri";$("iE").textContent="";
   [["iNo","no"],["iMu","musteri"],["iAdi","isAdi"],["iSt","stok"],["iFx","fx"],["iFo","formul"],["iNtU","notU"],["iBU","urunAdi"],["iRenk","renk"],["iNtB","notB"]].forEach(([i,f])=>$(i).value=v[f]||"");
   if(!e)$("iNo").value=iNext();iDL();
-  $("iTr").value=v.spTarih||bugun();$("iBv").checked=!!v.baskiVar;$("iYz").checked=!e;
+  $("iTr").value=v.spTarih||bugun();$("iBv").checked=!!v.baskiVar;
   $("iCols").innerHTML=[0,1,2].map(n=>{const c=C[n]||{};return `<div style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px;margin-bottom:6px"><b style="font-size:12px">${n+1}. ebat</b><div class="grid" style="margin-top:4px">`+[["kg","Kg"],["en","En (42*14*14)"],["mikron","Mikron"],["korona","Korona (bomlu/bomsuz)"],["boy","Boy / kazan (cm)"]].map(([f,p])=>`<input data-c="${n}" data-f="${f}" list="dl_${f}" placeholder="${p}"${f==="kg"?' type="number" inputmode="decimal" min="0" step="any"':""} value="${esc(c[f]??"")}">`).join("")+`</div></div>`}).join("");
   $("iDlg").showModal();
 }
@@ -1572,7 +1577,7 @@ $("iOk").onclick=async()=>{
   try{
     if(iEdit){d.duzenleyen=ad();if(!d.baskiVar&&iEdit.asama==="baski")d.asama="kesim";await db.ref("isEmirleri/"+iEdit.id).update(d)}
     else{Object.assign(d,{asama:"ekstruder",ekleyen:ad(),ekleyenUid:user.uid,eklenmeTarihi:firebase.database.ServerValue.TIMESTAMP});await db.ref("isEmirleri").push().set(d)}
-    const yz=$("iYz").checked;$("iDlg").close();toast("İş emri kaydedildi");if(yz)setTimeout(()=>isYazdir(d),250);
+    $("iDlg").close();toast("İş emri kaydedildi");
   }catch(e){err(errText(e))}
   $("iOk").disabled=false;
 };
@@ -1643,33 +1648,34 @@ try{
 })();
 </script>
 <style>
-#prn{display:none}
+#prn{display:none;--z:1}
+#prn.meas{display:block;position:absolute;left:-10000px;top:0;width:285mm}
 @media print{
   @page{size:A4 landscape;margin:6mm}
   html,body{background:#fff!important;margin:0!important;padding:0!important}
   body>*:not(#prn){display:none!important}
   #prn{display:block!important}
-  .prow{display:flex;gap:0;width:285mm;height:196mm;color:#000;font-family:Arial,Helvetica,sans-serif}
-  .pf{flex:1 1 0;width:0;padding:0 4mm;box-sizing:border-box;font-size:11pt}
-  .pcut{flex:0 0 0;border-left:1.5px dashed #777}
-  .ph{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #000;padding-bottom:2mm;margin-bottom:2.5mm}
-  .pfirma{font-size:13pt;font-weight:900;letter-spacing:.5px}
-  .pbas{font-size:15.5pt;font-weight:900}
-  .pno{font-size:24pt;font-weight:900;border:2px solid #000;padding:1mm 3mm}
-  .pt{width:100%;border-collapse:collapse;margin-bottom:2.5mm;table-layout:auto}
-  .pt th,.pt td{border:1px solid #000;padding:1.4mm 1.8mm;text-align:left;vertical-align:middle;font-size:11pt;word-break:break-word}
-  .pt th{background:#e5e5e5!important;font-weight:800;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .pc th,.pc td{text-align:center}
-  .pc td{font-size:12.5pt}
-  .ps td,.ps th{height:9mm}
-  .ps th{text-align:left}
-  .pd{width:100%;border-collapse:collapse;margin:0}
-  .pd th,.pd td{border:0;border-top:1px solid #000;border-right:1px solid #000;height:9mm;font-size:10.5pt}
-  .pd tr:first-child th{border-top:0;height:7mm}
-  .pd th:last-child,.pd td:last-child{border-right:0}
-  .pd th:first-child{width:34%;text-align:left}
-  .pn{border:1px solid #000;padding:2mm;margin-bottom:2mm;min-height:11mm;font-size:11pt}
 }
+#prn .prow{display:flex;width:285mm;height:196mm;color:#000;font-family:Arial,Helvetica,sans-serif;font-weight:700}
+#prn .pf{flex:1 1 0;width:0;min-width:0;align-self:flex-start;padding:0 calc(3mm*var(--z));box-sizing:border-box;font-size:calc(13pt*var(--z))}
+#prn .pcut{flex:0 0 0;border-left:1.5px dashed #777;align-self:stretch}
+#prn .ph{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #000;padding-bottom:calc(2mm*var(--z));margin-bottom:calc(2.5mm*var(--z))}
+#prn .pfirma{font-size:calc(14pt*var(--z));font-weight:900;letter-spacing:.5px}
+#prn .pbas{font-size:calc(17pt*var(--z));font-weight:900}
+#prn .pno{font-size:calc(27pt*var(--z));font-weight:900;border:2px solid #000;padding:calc(1mm*var(--z)) calc(3mm*var(--z))}
+#prn .pt{width:100%;border-collapse:collapse;margin-bottom:calc(2.5mm*var(--z))}
+#prn .pt th,#prn .pt td{border:1.2px solid #000;padding:calc(1.4mm*var(--z)) calc(1.8mm*var(--z));text-align:left;vertical-align:middle;font-size:calc(13pt*var(--z));font-weight:700;word-break:break-word}
+#prn .pt th{background:#e5e5e5;font-weight:900;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#prn .pc th,#prn .pc td{text-align:center}
+#prn .pc td{font-size:calc(15pt*var(--z));font-weight:800}
+#prn .ps td,#prn .ps th{height:calc(10mm*var(--z))}
+#prn .ps th{text-align:left}
+#prn .pn{border:1.2px solid #000;padding:calc(2mm*var(--z));margin-bottom:calc(2.5mm*var(--z));min-height:calc(11mm*var(--z));font-size:calc(13pt*var(--z));font-weight:700}
+#prn .pd{width:100%;border-collapse:collapse;margin:0}
+#prn .pd th,#prn .pd td{border:0;border-top:1.2px solid #000;border-right:1.2px solid #000;height:calc(10mm*var(--z));font-size:calc(12.5pt*var(--z))}
+#prn .pd tr:first-child th{border-top:0;height:calc(8mm*var(--z))}
+#prn .pd th:last-child,#prn .pd td:last-child{border-right:0}
+#prn .pd th:first-child{width:34%;text-align:left}
 </style>
 <div id="prn"></div>
 </body>
