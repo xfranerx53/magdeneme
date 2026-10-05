@@ -146,6 +146,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     <button class="menuBtn" style="background:#ff9f1c" data-go="sevk"><span class="ic">🚚</span><div>SEVKİYAT<small>Hazır ürünler, sevk listesi, adresler</small></div></button>
     <button class="menuBtn" style="background:#2563eb" data-go="stok"><span class="ic">📦</span><div>STOK<small>Stok, sipariş, tedarikçi, hareketler</small></div></button>
     <button class="menuBtn" style="background:#c82333" data-go="is"><span class="ic">📋</span><div>İŞ EMİRLERİ<small>Ekstruder, baskı, kesim, depo takibi</small></div></button>
+    <button class="menuBtn" style="background:#0f766e" data-go="tah"><span class="ic">💰</span><div>TAHSİLAT &amp; GÖREV<small>Çek/nakit, müşteriler, şoför görevleri</small></div></button>
     <button class="btn b6" data-out>Çıkış</button>
   </div>
 </div>
@@ -256,10 +257,14 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 
   <div id="pIs" class="hide">
     <button class="btn b1" style="margin:0 0 10px" id="iAdd">＋ Yeni iş emri aç</button>
-    <div style="font-size:10px;color:#94a3b8;margin:-4px 0 8px">Sürüm: yazdırma-v6 (iş emri kartlarında 🖨️ Yazdır butonu var)</div>
+    <div style="font-size:10px;color:#94a3b8;margin:-4px 0 8px">Sürüm: yazdırma-v7 + tahsilat (iş emri kartlarında 🖨️ Yazdır butonu var)</div>
     <input id="iq" placeholder="🔍 Seri no, müşteri, stok adı ara..." style="margin-bottom:8px">
     <div class="tabs stabs" id="iTabs"></div>
     <div id="iList"></div>
+  </div>
+  <div id="pTah" class="hide">
+    <div class="tabs stabs" id="tTabs"><button data-w="gor" class="on">🧭 GÖREVLER</button><button data-w="tah">💰 TAHSİLAT</button><button data-w="mus">👥 MÜŞTERİLER</button></div>
+    <div id="tForm" style="margin-bottom:10px"></div><div id="tList"></div>
   </div>
   <div id="pStok" class="hide">
     <div class="tabs stabs" id="stabs"><button data-s="kal" class="on">📦 KALEMLER</button><button data-s="sip" id="stO">🧾 SİPARİŞLER</button><button data-s="ted">🏢 TEDARİKÇİLER</button></div>
@@ -804,9 +809,9 @@ const dur=k=>{const n=norm(k),ks=Object.keys(n.mik);if(!ks.length||ks.every(u=>!
 const fmtQ=(o,z)=>UN.filter(([u])=>o&&u in o&&(z||+o[u]>0)).map(([u,l])=>fmt(o[u])+" "+l).join(", ")||"-";
 function modSec(m){panel=m;
   document.querySelectorAll("#mods button").forEach(b=>b.classList.toggle("on",b.dataset.m===m));
-  $("pSevk").classList.toggle("hide",m!=="sevk");$("pStok").classList.toggle("hide",m!=="stok");$("pIs").classList.toggle("hide",m!=="is");
-  $("mt").textContent=m==="sevk"?"SEVKİYAT":m==="is"?"İŞ EMİRLERİ":"STOK";
-  if(m==="stok")stokYukle();else stokKapat();if(m==="is")isYukle();else isKapat()}
+  $("pSevk").classList.toggle("hide",m!=="sevk");$("pStok").classList.toggle("hide",m!=="stok");$("pIs").classList.toggle("hide",m!=="is");$("pTah").classList.toggle("hide",m!=="tah");
+  $("mt").textContent=m==="sevk"?"SEVKİYAT":m==="is"?"İŞ EMİRLERİ":m==="tah"?"TAHSİLAT & GÖREV":"STOK";
+  if(m==="stok")stokYukle();else stokKapat();if(m==="is")isYukle();else isKapat();if(m==="tah")tahYukle();else tahKapat()}
 $("mods").onclick=e=>{const m=e.target.dataset.m;if(!m||m===panel)return;modSec(m)};
 document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{menuOk=true;modSec(b.dataset.go);show("vApp");window.scrollTo(0,0)});
 $("bMenu").onclick=()=>{menuOk=false;show("vMenu");window.scrollTo(0,0)};
@@ -1635,6 +1640,44 @@ try{
   box.addEventListener("click",function(e){if(e.target===box)kapat()});
   document.addEventListener("keydown",function(e){if(e.key==="Escape")kapat()});
 }catch(err){console.error("foto görüntüleyici:",err)}
+
+/* ===== TAHSİLAT / GÖREV / MÜŞTERİ ===== */
+let tM=[],tT=[],tG=[],tRef=[],tW="gor",tSof="";
+const tArr=o=>Object.entries(o||{}).map(([id,v])=>({id,...v})),tTL=n=>fmt(n)+" ₺",tAd=id=>(tM.find(m=>m.id===id)||{}).ad||"-";
+const tGun=n=>new Date(Date.now()+n*864e5).toISOString().slice(0,10),tZ=(a,b)=>(b.zaman||0)-(a.zaman||0);
+const TL={sevk:"🚚 Sevk",tahsilat:"💰 Tahsilat",alim:"📥 Alım/Toplama",iade:"↩️ İade"};
+const tMo=()=>'<option value="">Müşteri / firma seç…</option>'+tM.slice().sort((a,b)=>(a.ad||"").localeCompare(b.ad||"","tr")).map(m=>`<option value="${esc(m.id)}">${esc(m.ad)}</option>`).join("");
+function tahYukle(){tahKapat();[["musteriler",a=>tM=a],["tahsilatlar",a=>tT=a],["gorevler",a=>tG=a]].forEach(([p,f])=>{const r=db.ref(p);r.on("value",s=>{f(tArr(s.val()));tCiz()},e=>toast(errText(e)));tRef.push(r)});tSekme(tW)}
+function tahKapat(){tRef.forEach(r=>r.off());tRef=[]}
+auth.onAuthStateChanged(u=>{if(!u)tahKapat()});
+$("tTabs").onclick=e=>{const w=e.target.dataset.w;if(w)tSekme(w)};
+function tSekme(w){tW=w;document.querySelectorAll("#tTabs button").forEach(b=>b.classList.toggle("on",b.dataset.w===w));tFormCiz();tCiz()}
+function tFormCiz(){const sel=(i,o)=>`<select id="${i}">${o}</select>`;let h="";
+  if(tW==="mus")h=`<input id="fAd" placeholder="Firma adı"><input id="fTel" type="tel" placeholder="Telefon (isteğe bağlı)">`+sel("fTy",'<option value="mus">Müşteri</option><option value="ted">Tedarikçi</option>');
+  else if(tW==="tah")h=sel("fMu",tMo())+sel("fTt",'<option value="nakit_alindi">Nakit (alındı)</option><option value="cek_alindi">Çek (alındı)</option><option value="cek_bekliyor">Çek (hazır, alınacak)</option>')+`<input id="fTu" inputmode="decimal" placeholder="Tutar ₺"><label>Çek vadesi (varsa)</label><input id="fVd" type="date"><input id="fNot" placeholder="Not (çek no, banka…)">`;
+  else{const so=[...new Set(["Tuncay","Haydar"].concat(tG.map(x=>x.sofor).filter(Boolean)))];h=sel("fTur",Object.entries(TL).map(([k,v])=>`<option value="${k}">${v}</option>`).join(""))+sel("fMu",tMo())+`<input id="fSo" list="dlS" placeholder="Şoför"><datalist id="dlS">${so.map(x=>`<option value="${esc(x)}">`).join("")}</datalist><input id="fNot" placeholder="Not / miktar (örn: 30 koli orta eko)"><input id="fTa" type="date" value="${bugun()}">`}
+  $("tForm").innerHTML=h+'<button class="btn b1" id="fOk">＋ Ekle</button>'}
+async function tKaydet(){const g=i=>($(i)?$(i).value:"").trim(),b={ekleyen:ad(),ekleyenUid:user.uid,zaman:firebase.database.ServerValue.TIMESTAMP};
+  try{
+    if(tW==="mus"){if(!g("fAd"))return toast("Firma adı yazın");await db.ref("musteriler").push({...b,ad:g("fAd"),tel:g("fTel"),tip:g("fTy")})}
+    else if(tW==="tah"){const tu=parseFloat(g("fTu").replace(",","."));if(!g("fMu")||!(tu>0))return toast("Müşteri ve tutar gerekli");const k=g("fTt").split("_");await db.ref("tahsilatlar").push({...b,musteri:g("fMu"),tur:k[0],durum:k[1],tutar:tu,vade:g("fVd"),not:g("fNot"),tarih:bugun()})}
+    else{if(!g("fNot")&&!g("fMu"))return toast("Müşteri veya not yazın");await db.ref("gorevler").push({...b,tur:g("fTur"),musteri:g("fMu"),sofor:g("fSo"),not:g("fNot"),tarih:g("fTa")||bugun(),durum:"acik"})}
+    tFormCiz();toast("✓ Kaydedildi")}catch(e){toast(errText(e))}}
+$("tForm").onclick=e=>{if(e.target.id==="fOk")tKaydet()};
+function tCiz(){const s=$("fMu");if(s){const v=s.value;s.innerHTML=tMo();s.value=v}
+  const L=$("tList");if(!L)return;let h="";const sil=(p,x)=>(isAdmin()||x.ekleyenUid===(user&&user.uid))?`<button class="btn b5" data-a="sil" data-p="${p}" data-id="${x.id}">🗑️ Sil</button>`:"";
+  if(tW==="mus")h=tM.slice().sort((a,b)=>(a.ad||"").localeCompare(b.ad||"","tr")).map(m=>{const a=tT.filter(x=>x.musteri===m.id),top=d=>tTL(a.filter(x=>x.durum===d).reduce((t,x)=>t+(+x.tutar||0),0));
+    return `<div class="item c"><b>${esc(m.ad)}</b> <span class="badge badge-sevk">${m.tip==="ted"?"Tedarikçi":"Müşteri"}</span><div class="sub">${esc(m.tel||"")}</div><div class="sub">Alınan: <b>${top("alindi")}</b> · Bekleyen çek: <b>${top("bekliyor")}</b> · Açık görev: ${tG.filter(x=>x.musteri===m.id&&x.durum==="acik").length}</div><div class="acts">${sil("musteriler",m)}</div></div>`}).join("")||'<div class="empty">Henüz müşteri yok.</div>';
+  else if(tW==="tah"){const t=d=>tT.filter(x=>x.durum===d).reduce((n,x)=>n+(+x.tutar||0),0);
+    h=`<div class="addr">Alınan: <b>${tTL(t("alindi"))}</b><br>Bekleyen çek: <b>${tTL(t("bekliyor"))}</b></div>`+tT.slice().sort(tZ).map(x=>{const yk=x.durum==="bekliyor"&&x.vade&&x.vade<=tGun(3);
+      return `<div class="item c ${x.durum==="alindi"?"hazir-border":"sevk-border"}"><div style="display:flex;justify-content:space-between"><b>${esc(tAd(x.musteri))}</b><span class="badge ${x.durum==="alindi"?"badge-hazir":"badge-sevk"}">${x.tur==="cek"?"ÇEK":"NAKİT"} · ${x.durum==="alindi"?"ALINDI":"ALINACAK"}</span></div><div style="font-size:18px;font-weight:900">${tTL(x.tutar)}</div>${x.vade?`<div class="sub" ${yk?'style="color:#b91c1c;font-weight:800"':""}>Vade: ${trDate(x.vade)}${yk?" ⚠️":""}</div>`:""}${x.not?`<div class="note">${esc(x.not)}</div>`:""}<div class="sub">${esc(x.ekleyen||"")} · ${trDate(x.tarih)}${x.alanKim?" · alan: "+esc(x.alanKim):""}</div><div class="acts">${x.durum==="bekliyor"?`<button class="btn b3" data-a="al" data-id="${x.id}">✓ Çek alındı</button>`:""}${sil("tahsilatlar",x)}</div></div>`}).join("")||'<div class="empty">Kayıt yok.</div>'}
+  else{const so=[...new Set(tG.map(x=>x.sofor).filter(Boolean))];
+    h=`<div class="tabs stabs"><button data-a="sof" data-id="" class="${tSof?"":"on"}">HEPSİ</button>${so.map(n=>`<button data-a="sof" data-id="${esc(n)}" class="${tSof===n?"on":""}">${esc(n)}</button>`).join("")}</div>`+tG.filter(x=>!tSof||x.sofor===tSof).sort((a,b)=>(a.durum==="acik"?0:1)-(b.durum==="acik"?0:1)||(a.tarih||"").localeCompare(b.tarih||"")).map(x=>`<div class="item c ${x.durum==="acik"?"sevk-border":"hazir-border"}" style="${x.durum==="acik"?"":"opacity:.6"}"><div style="display:flex;justify-content:space-between"><b>${TL[x.tur]||x.tur}</b><span class="badge ${x.durum==="acik"?"badge-sevk":"badge-hazir"}">${x.durum==="acik"?"AÇIK":"YAPILDI"}</span></div><div class="sub" style="font-size:14px;color:#0f172a;font-weight:700">${esc(tAd(x.musteri))}</div>${x.not?`<div class="note">${esc(x.not)}</div>`:""}<div class="sub">🚚 ${esc(x.sofor||"atanmadı")} · ${trDate(x.tarih)}${x.bitirenKim?" · "+esc(x.bitirenKim):""}</div><div class="acts">${x.durum==="acik"?`<button class="btn b3" data-a="bit" data-id="${x.id}">✓ Yapıldı</button>`:""}${sil("gorevler",x)}</div></div>`).join("")||'<div class="empty">Görev yok.</div>'}
+  L.innerHTML=h}
+$("tList").onclick=async e=>{const b=e.target.closest("button[data-a]");if(!b)return;const{a,id,p}=b.dataset,TS=firebase.database.ServerValue.TIMESTAMP;
+  try{if(a==="sof"){tSof=id;tCiz()}else if(a==="sil"){if(confirm("Silinsin mi?"))await db.ref(p+"/"+id).remove()}
+  else if(a==="al")await db.ref("tahsilatlar/"+id).update({durum:"alindi",alanKim:ad(),alanZaman:TS});
+  else if(a==="bit")await db.ref("gorevler/"+id).update({durum:"bitti",bitirenKim:ad(),bitisZaman:TS})}catch(err){toast(errText(err))}};
 })();
 </script>
 <script>
