@@ -256,7 +256,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 
   <div id="pIs" class="hide">
     <button class="btn b1" style="margin:0 0 10px" id="iAdd">＋ Yeni iş emri aç</button>
-    <div style="font-size:10px;color:#94a3b8;margin:-4px 0 8px">Sürüm: yazdırma-v10 (iş emri kartlarında 🖨️ Yazdır butonu var)</div>
+    <div style="font-size:10px;color:#94a3b8;margin:-4px 0 8px">Sürüm: yazdırma-v11 (iş emri kartlarında 🖨️ Yazdır butonu var)</div>
     <input id="iq" placeholder="🔍 Seri no, müşteri, stok adı ara..." style="margin-bottom:8px">
     <div class="tabs stabs" id="iTabs"></div>
     <div id="iList"></div>
@@ -1536,16 +1536,31 @@ function isForm(e,fy){
   const satir=(k,ad)=>{if(k==="depo"){const R=(C.length?C:[{}]).map((c,i)=>`<tr><th>${i+1}${c.en?" · "+esc(c.en):""}</th><td></td><td></td></tr>`).join("");return `<tr><th>DEPO</th><td colspan="3" style="padding:0"><table class="pd"><tr><th>Ebat</th><th>Çıkan Kg</th><th>Paket Sayısı</th></tr>${R}</table></td></tr>`}const g=L[k]||{};return `<tr><th>${ad}</th><td></td><td></td><td></td></tr>`};
   const st=[["ekstruder","EKSTRUDER"]].concat(e.baskiVar?[["baski","BASKI"]]:[]).concat([["kesim","KESİM"],["depo","DEPO"]]);
   const cr=C.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(fmt(c.kg))}</b></td><td>${esc(c.en||"")}</td><td>${esc(c.mikron||"")}</td><td>${esc(c.korona||"")}</td><td>${esc(c.boy||"")}</td></tr>`).join("");
+  const U=v=>esc(v||"-"),X=i=>C[i]||null,k3=(fn,cl)=>[0,1,2].map(i=>`<td colspan="2" class="v">${fn(X(i),i)}</td>`).join(""),
+    pair=(f,u)=>[0,1,2].map(i=>{const c=X(i),v=c&&c[f]?(f==="kg"?fmt(c.kg):c[f]):"";return `<td class="v">${v?esc(v):"-"}</td><td class="u">${u}</td>`}).join(""),
+    fyT=fy&&e.fiyat>0?`${esc(e.fiyat.toLocaleString("tr-TR",{maximumFractionDigits:4}))} ₺ <small>${e.kdvDahil?"KDV DAHİL":"+ KDV"}</small>`:"",
+    logo='<svg viewBox="0 0 60 30"><ellipse cx="30" cy="15" rx="28" ry="12" fill="none" stroke="#000" stroke-width="3"/><path d="M10 11L24 24L30 13L36 24L50 11" fill="none" stroke="#000" stroke-width="3.5"/></svg>';
   return `<div class="pf">
-  <div class="ph"><div><div class="pfirma">MAG AMBALAJ</div><div class="pbas">ÜRETİM İŞ TAKİP FORMU</div></div><div class="pno">${esc(e.no||"")}</div></div>
-  <table class="pt"><tr><th>Sipariş Tarihi</th><td>${esc(trDate(e.spTarih))}</td><th>F / X</th><td>${esc(e.fx||"")}</td></tr>
-  <tr><th>Müşteri</th><td colspan="3"><b>${esc(e.musteri||"")}</b></td></tr>
-  <tr><th>İşin Adı</th><td colspan="3">${esc(e.isAdi||"")}</td></tr>
-  <tr><th>Stok Adı</th><td colspan="3">${esc(e.stok||"")}</td></tr>
-  <tr><th>Ürün Formülü</th><td colspan="3">${esc(e.formul||"")}</td></tr>${fy&&e.fiyat>0?`<tr><th>Fiyat</th><td colspan="3"><b>${esc(e.fiyat.toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:4}))} ₺ / kg</b> ${e.kdvDahil?"(KDV dahil)":"+ KDV"}</td></tr>`:""}</table>
-  <table class="pt pc"><tr><th>#</th><th>Kg</th><th>En</th><th>Mikron</th><th>Korona</th><th>Boy/Kazan</th></tr>${cr}</table>
-  <div class="pn"><b>Üretim Notu:</b> ${esc(e.notU||"")}</div>
-  ${e.baskiVar||e.notB?`<div class="pn"><b>Baskı:</b> ${esc(e.urunAdi||"")} ${e.renk?"· "+esc(e.renk):""}${e.notB?"<br>"+esc(e.notB):""}</div>`:""}
+  <div class="hdr"><div class="lg">${logo}mag ambalaj</div><div class="sn"><small>SERİ NO:</small><b>${esc(e.no||"")}</b></div></div>
+  <div class="tt">ÜRETİM İŞ TAKİP FORMU</div>
+  <table class="px top"><colgroup><col style="width:20%"><col style="width:42%"><col style="width:16%"><col style="width:22%"></colgroup>
+  <tr><th>MÜŞTERİ :</th><td class="v">${U(e.musteri)}</td><th>SP.<br>TARİHİ:</th><td class="v">${esc(trDate(e.spTarih))}</td></tr>
+  <tr><th>İŞİN ADI :</th><td class="v">${U(e.isAdi)}</td><th>F/X :</th><td class="v">${U(e.fx)}</td></tr>
+  ${fyT?`<tr><th rowspan="2">STOK ADI :</th><td class="v" rowspan="2">${U(e.stok)}</td><th>FİYAT :</th><td class="v">${fyT}</td></tr><tr><th>KLİŞE :</th><td class="v">-</td></tr>`:`<tr><th>STOK ADI :</th><td class="v">${U(e.stok)}</td><th>SP.<br>NO:</th><td class="v">-</td></tr>`}
+  </table>
+  <table class="px"><colgroup><col style="width:20%">${'<col style="width:21%"><col style="width:6%">'.repeat(3)}</colgroup>
+  <tr><th>SİPARİŞ<br>MİKTARI :</th>${pair("kg","Kg")}</tr>
+  <tr><th>ÜRÜN<br>FORMÜLÜ :</th><td class="v" colspan="6" style="font-size:calc(15pt*var(--z))">${U(e.formul)}</td></tr>
+  <tr><th>EN :</th>${k3(c=>c&&c.en?esc(c.en):"-")}</tr>
+  <tr><th>MİKRON :</th>${pair("mikron","µ")}</tr>
+  <tr><th>KORONA :</th>${k3(c=>c&&c.korona?esc(c.korona):"-")}</tr>
+  <tr><th>NOT :</th><td class="v n" colspan="6">${U(e.notU)}</td></tr>
+  <tr><th class="hd" colspan="7">BASKI - KESİM İŞ TAKİP FORMU</th></tr>
+  <tr><th>ÜRÜN ADI :</th>${k3((c,i)=>i===0?U(e.urunAdi):"-")}</tr>
+  <tr><th>BOY/KAZAN :</th>${k3(c=>c&&c.boy?esc(c.boy):"-")}</tr>
+  <tr><th>BASKI RENGİ :</th>${k3((c,i)=>i===0?U(e.renk):"-")}</tr>
+  <tr><th>NOT :</th><td class="v n" colspan="6" style="height:calc(14mm*var(--z))">${U(e.notB)}</td></tr>
+  </table>
   <table class="pt pc ps"><tr><th>Aşama</th><th>Tarih</th><th>Operatör</th><th>Biten Ürün</th></tr>${st.map(x=>satir(x[0],x[1])).join("")}</table>
   </div>`;
 }
@@ -1688,6 +1703,21 @@ try{
 #prn .pd tr:first-child th{border-top:0;height:calc(8mm*var(--z))}
 #prn .pd th:last-child,#prn .pd td:last-child{border-right:0}
 #prn .pd th:first-child{width:34%;text-align:left}
+#prn .hdr{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:calc(1mm*var(--z))}
+#prn .lg{display:flex;align-items:center;gap:calc(2mm*var(--z));font-style:italic;font-weight:900;font-size:calc(29pt*var(--z));letter-spacing:-1px;line-height:1}
+#prn .lg svg{width:calc(17mm*var(--z));height:calc(9mm*var(--z))}
+#prn .sn{text-align:right;line-height:1.1}#prn .sn small{display:block;font-size:calc(11pt*var(--z))}#prn .sn b{font-size:calc(22pt*var(--z));font-weight:900}
+#prn .tt{text-align:center;font-weight:900;font-size:calc(17pt*var(--z));border:1.5px solid #000;border-bottom:0;padding:calc(1mm*var(--z))}
+#prn .px{width:100%;border-collapse:collapse;table-layout:fixed}
+#prn .px th,#prn .px td{border:1.5px solid #000;padding:calc(1.2mm*var(--z)) calc(1.5mm*var(--z));font-size:calc(11.5pt*var(--z));font-weight:800;vertical-align:middle;word-break:break-word;background:#fff}
+#prn .px th{text-align:left;line-height:1.1;white-space:nowrap;font-size:calc(10.5pt*var(--z))}
+#prn .px td.v{text-align:center;font-size:calc(14pt*var(--z))}
+#prn .px td.u{font-size:calc(10pt*var(--z));font-weight:700;text-align:left;padding-left:calc(.8mm*var(--z))}
+#prn .px td.n{font-size:calc(11pt*var(--z));height:calc(11mm*var(--z))}
+#prn .px th.hd{text-align:center;font-size:calc(14pt*var(--z))}
+#prn .px.top tr:first-child th,#prn .px.top tr:first-child td{height:calc(10mm*var(--z))}
+#prn .px small{font-size:.62em;font-weight:700}
+#prn .ps{margin-top:calc(2.5mm*var(--z))}
 </style>
 <div id="prn"></div>
 </body>
