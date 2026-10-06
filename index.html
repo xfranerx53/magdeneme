@@ -256,7 +256,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 
   <div id="pIs" class="hide">
     <button class="btn b1" style="margin:0 0 10px" id="iAdd">＋ Yeni iş emri aç</button>
-    <div style="font-size:10px;color:#94a3b8;margin:-4px 0 8px">Sürüm: yazdırma-v9 (iş emri kartlarında 🖨️ Yazdır butonu var)</div>
+    <div style="font-size:10px;color:#94a3b8;margin:-4px 0 8px">Sürüm: yazdırma-v10 (iş emri kartlarında 🖨️ Yazdır butonu var)</div>
     <input id="iq" placeholder="🔍 Seri no, müşteri, stok adı ara..." style="margin-bottom:8px">
     <div class="tabs stabs" id="iTabs"></div>
     <div id="iList"></div>
@@ -401,6 +401,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <input id="iSt" placeholder="Stok adı (OR.LDPE BASKISIZ ATLET POŞET)" style="margin-top:6px">
   <input id="iFx" placeholder="F/X (F-PEŞİN, X-VADE...)" style="margin-top:6px">
   <input id="iFo" placeholder="Ürün formülü (F-2 ŞEFFAF ORJİNAL LİNERLİ)" style="margin-top:6px">
+  <div id="iFyW" class="hide" style="margin-top:8px"><div class="grid"><input id="iFy" inputmode="decimal" placeholder="Birim fiyat (₺ / kg)"><label class="chip"><input type="checkbox" id="iKd">KDV dahil</label></div></div>
   <label style="margin-top:10px">Sipariş sütunları (en fazla 3 ebat)</label>
   <div id="iCols"></div>
   <textarea id="iNtU" rows="2" placeholder="Üretim notu (Kg geçmesin, mikrona dikkat...)"></textarea>
@@ -806,7 +807,7 @@ function modSec(m){panel=m;
   document.querySelectorAll("#mods button").forEach(b=>b.classList.toggle("on",b.dataset.m===m));
   $("pSevk").classList.toggle("hide",m!=="sevk");$("pStok").classList.toggle("hide",m!=="stok");$("pIs").classList.toggle("hide",m!=="is");
   $("mt").textContent=m==="sevk"?"SEVKİYAT":m==="is"?"İŞ EMİRLERİ":"STOK";
-  if(m==="stok")stokYukle();else stokKapat();if(m==="is")isYukle();else isKapat();}
+  if(m==="stok")stokYukle();else stokKapat();if(m==="is")isYukle();else isKapat();$("iAdd").classList.toggle("hide",!canIsAc())}
 $("mods").onclick=e=>{const m=e.target.dataset.m;if(!m||m===panel)return;modSec(m)};
 document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{menuOk=true;modSec(b.dataset.go);show("vApp");window.scrollTo(0,0)});
 $("bMenu").onclick=()=>{menuOk=false;show("vMenu");window.scrollTo(0,0)};
@@ -1530,7 +1531,7 @@ function iDL(){
   [["iMu","musteri"],["iAdi","isAdi"],["iSt","stok"],["iFx","fx"],["iFo","formul"],["iBU","urunAdi"],["iRenk","renk"]].forEach(([i,f])=>$(i).setAttribute("list","dl_"+f));
 }
 /* ===== YAZDIRMA: A4 yatay, yan yana 2 adet üretim iş takip formu ===== */
-function isForm(e){
+function isForm(e,fy){
   const C=icols(e),L=e.log||{},bos=n=>{let r="";for(let i=0;i<n;i++)r+="<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>";return r};
   const satir=(k,ad)=>{if(k==="depo"){const R=(C.length?C:[{}]).map((c,i)=>`<tr><th>${i+1}${c.en?" · "+esc(c.en):""}</th><td></td><td></td></tr>`).join("");return `<tr><th>DEPO</th><td colspan="3" style="padding:0"><table class="pd"><tr><th>Ebat</th><th>Çıkan Kg</th><th>Paket Sayısı</th></tr>${R}</table></td></tr>`}const g=L[k]||{};return `<tr><th>${ad}</th><td></td><td></td><td></td></tr>`};
   const st=[["ekstruder","EKSTRUDER"]].concat(e.baskiVar?[["baski","BASKI"]]:[]).concat([["kesim","KESİM"],["depo","DEPO"]]);
@@ -1541,7 +1542,7 @@ function isForm(e){
   <tr><th>Müşteri</th><td colspan="3"><b>${esc(e.musteri||"")}</b></td></tr>
   <tr><th>İşin Adı</th><td colspan="3">${esc(e.isAdi||"")}</td></tr>
   <tr><th>Stok Adı</th><td colspan="3">${esc(e.stok||"")}</td></tr>
-  <tr><th>Ürün Formülü</th><td colspan="3">${esc(e.formul||"")}</td></tr></table>
+  <tr><th>Ürün Formülü</th><td colspan="3">${esc(e.formul||"")}</td></tr>${fy&&e.fiyat>0?`<tr><th>Fiyat</th><td colspan="3"><b>${esc(e.fiyat.toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:4}))} ₺ / kg</b> ${e.kdvDahil?"(KDV dahil)":"+ KDV"}</td></tr>`:""}</table>
   <table class="pt pc"><tr><th>#</th><th>Kg</th><th>En</th><th>Mikron</th><th>Korona</th><th>Boy/Kazan</th></tr>${cr}</table>
   <div class="pn"><b>Üretim Notu:</b> ${esc(e.notU||"")}</div>
   ${e.baskiVar||e.notB?`<div class="pn"><b>Baskı:</b> ${esc(e.urunAdi||"")} ${e.renk?"· "+esc(e.renk):""}${e.notB?"<br>"+esc(e.notB):""}</div>`:""}
@@ -1550,10 +1551,10 @@ function isForm(e){
 }
 function isYazdir(e){
   const h=isForm(e),P=$("prn");
-  P.innerHTML=`<div class="prow">${h}<div class="pcut"></div>${h}</div>`;
+  P.innerHTML=`<div class="prow">${h}<div class="pcut"></div>${isForm(e,true)}</div>`;
   /* Sayfaya sığan en büyük yazı boyutunu bul (ekranda ölç, sonra yazdır) */
   P.classList.add("meas");
-  const f=P.querySelector(".pf"),hedef=192*96/25.4;
+  const f=P.querySelector(".pf:last-child"),hedef=192*96/25.4;
   let z=1.25;P.style.setProperty("--z",z);
   while(f.offsetHeight>hedef&&z>0.6){z=Math.round((z-0.03)*100)/100;P.style.setProperty("--z",z)}
   P.classList.remove("meas");
@@ -1561,15 +1562,17 @@ function isYazdir(e){
   window.onafterprint=()=>{document.title=t;P.innerHTML=""};
   setTimeout(()=>window.print(),150);
 }
+const canIsAc=()=>!!rec&&(rec.yonetici===true||rec.rol==="Muhasebe"||rec.rol==="Depo Görevlisi");
 function iAc(e){
   iEdit=e||null;const v=e||{},C=e?icols(e):[];$("iT").textContent=e?"İş emrini düzenle":"Yeni iş emri";$("iE").textContent="";
   [["iNo","no"],["iMu","musteri"],["iAdi","isAdi"],["iSt","stok"],["iFx","fx"],["iFo","formul"],["iNtU","notU"],["iBU","urunAdi"],["iRenk","renk"],["iNtB","notB"]].forEach(([i,f])=>$(i).value=v[f]||"");
   if(!e)$("iNo").value=iNext();iDL();
   $("iTr").value=v.spTarih||bugun();$("iBv").checked=!!v.baskiVar;
+  $("iFyW").classList.toggle("hide",!canIsAc());$("iFy").value=v.fiyat!=null?String(v.fiyat).replace(".",","):"";$("iKd").checked=!!v.kdvDahil;
   $("iCols").innerHTML=[0,1,2].map(n=>{const c=C[n]||{};return `<div style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px;margin-bottom:6px"><b style="font-size:12px">${n+1}. ebat</b><div class="grid" style="margin-top:4px">`+[["kg","Kg"],["en","En (42*14*14)"],["mikron","Mikron"],["korona","Korona (bomlu/bomsuz)"],["boy","Boy / kazan (cm)"]].map(([f,p])=>`<input data-c="${n}" data-f="${f}" list="dl_${f}" placeholder="${p}"${f==="kg"?' type="number" inputmode="decimal" min="0" step="any"':""} value="${esc(c[f]??"")}">`).join("")+`</div></div>`}).join("");
   $("iDlg").showModal();
 }
-$("iAdd").onclick=()=>iAc(null);
+$("iAdd").onclick=()=>{if(!canIsAc())return toast("Yeni iş emrini sadece muhasebe, depo görevlisi ve yönetici açabilir.");iAc(null)};
 $("iNo2").onclick=()=>$("iDlg").close();
 $("iOk").onclick=async()=>{
   const err=m=>{$("iE").textContent=m},g=id=>$(id).value.trim(),no=g("iNo").toUpperCase();
@@ -1579,6 +1582,7 @@ $("iOk").onclick=async()=>{
   if(!S.length)return err("En az bir ebat için kg veya en girin.");
   if((!iEdit||iEdit.no!==no)&&isE.some(x=>x.no===no))return err("Bu seri no zaten kayıtlı.");
   const d={no,musteri:g("iMu"),isAdi:g("iAdi"),stok:g("iSt"),fx:g("iFx"),spTarih:g("iTr"),formul:g("iFo"),notU:g("iNtU"),baskiVar:$("iBv").checked,urunAdi:g("iBU"),renk:g("iRenk"),notB:g("iNtB"),siparis:S};
+  if(canIsAc()){const fy=parseFloat(g("iFy").replace(",","."));d.fiyat=fy>0?fy:null;d.kdvDahil=$("iKd").checked}
   $("iOk").disabled=true;
   try{
     if(iEdit){d.duzenleyen=ad();if(!d.baskiVar&&iEdit.asama==="baski")d.asama="kesim";await db.ref("isEmirleri/"+iEdit.id).update(d)}
