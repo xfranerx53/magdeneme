@@ -1593,7 +1593,7 @@ function iDL(){
 /* ===== YAZDIRMA: A4 yatay, yan yana 2 adet üretim iş takip formu ===== */
 function isForm(e,fy){
   const C=icols(e),L=e.log||{},bos=n=>{let r="";for(let i=0;i<n;i++)r+="<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>";return r};
-  const satir=(k,ad)=>{if(k==="depo"){const R=(C.length?C:[{}]).map((c,i)=>`<tr><th>${i+1}${c.en?" · "+esc(c.en):""}</th><td></td><td></td></tr>`).join("");return `<tr><th>DEPO</th><td colspan="3" style="padding:0"><table class="pd"><tr><th>Ebat</th><th>Çıkan Kg</th><th>Paket Sayısı</th></tr>${R}</table></td></tr>`}const g=L[k]||{};return `<tr><th>${ad}</th><td></td><td></td><td></td></tr>`};
+  const satir=(k,ad)=>{if(k==="depo"){const R=(C.length?C:[{}]).map((c,i)=>`<tr><th>${esc([i+1,c.en,c.boy].filter(x=>x!==undefined&&x!==null&&String(x).trim()!=="").join(" - "))}</th><td></td><td></td></tr>`).join("");return `<tr><th>DEPO</th><td colspan="3" style="padding:0"><table class="pd"><tr><th>Ebat</th><th>Çıkan Kg</th><th>Paket Sayısı</th></tr>${R}</table></td></tr>`}const g=L[k]||{};return `<tr><th>${ad}</th><td></td><td></td><td></td></tr>`};
   const st=[["ekstruder","EKSTRUDER"]].concat(e.baskiVar?[["baski","BASKI"]]:[]).concat([["kesim","KESİM"],["depo","DEPO"]]);
   const cr=C.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(fmt(c.kg))}</b></td><td>${esc(c.en||"")}</td><td>${esc(c.mikron||"")}</td><td>${esc(c.korona||"")}</td><td>${esc(c.boy||"")}</td></tr>`).join("");
   const U=v=>esc(v||"-"),X=i=>C[i]||null,k3=(fn,cl)=>[0,1,2].map(i=>`<td colspan="2" class="v">${fn(X(i),i)}</td>`).join(""),
