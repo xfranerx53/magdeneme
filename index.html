@@ -89,6 +89,10 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 #vDos .hl{padding:5px}#vDos .hl b{font-size:18px}
 #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:9px 16px;border-radius:6px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:99999;max-width:90vw;text-align:center}
 #toast.on{opacity:1}
+#fGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.fth{position:relative}.fth img{width:100%;height:110px;object-fit:cover;border-radius:8px;background:#0f172a;cursor:zoom-in}
+.fth .fx{position:absolute;top:4px;right:4px;width:28px;height:28px;border:0;border-radius:50%;background:#e71d36;color:#fff;font-size:14px;font-weight:900;cursor:pointer;line-height:1}
+#fSay{font-size:11px;color:#64748b;margin-top:4px}
 </style>
 </head>
 <body>
@@ -169,13 +173,13 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <div id="vSev">
   <div class="card"><div class="grid">
     <div class="full">
-      <label style="color:#2563eb;font-size:12px">1. Etiket fotoğrafını çek (yeni kayıtta zorunlu)</label>
+      <label style="color:#2563eb;font-size:12px">1. Fotoğraf ekle (yeni kayıtta en az 1, en fazla 6 · ✖ ile kaldırılır)</label>
       <div class="photo">
         <button type="button" id="camO">📸 CANLI KAMERAYI AÇ</button>
         <label for="gal">🖼️ Galeri</label>
-        <input type="file" id="gal" accept="image/*" class="hide">
+        <input type="file" id="gal" accept="image/*" multiple class="hide">
       </div>
-      <img id="prev" alt="Etiket önizleme">
+      <div id="fGrid"></div><div id="fSay"></div>
     </div>
     <div><label style="color:#0284c7">Ağırlık (kg)</label><input type="number" id="kg" inputmode="decimal" min="0" step="any" placeholder="Örn: 20" class="fast"></div>
     <div><label style="color:#0284c7">Paket / Adet</label><input type="number" id="pk" inputmode="numeric" min="0" step="1" value="1" class="fast"></div>
@@ -453,7 +457,7 @@ const MODS={
 };
 let mod="sevk";const M=()=>MODS[mod];
 let user=null,rec=null,recRef=null,uRef=null,started=false,menuOk=false;
-let urunler=[],limit=20,tab="hazir",editId="",fotoData="",stream=null,irsHedef=null;
+let urunler=[],limit=20,tab="hazir",editId="",fotos=[],stream=null,irsHedef=null;
 const show=v=>{$("boot").classList.add("hide");["vLogin","vWait","vMenu","vApp"].forEach(x=>$(x).classList.toggle("hide",x!==v))};
 const ad=()=>rec?`${rec.ad} (${rec.rol})`:"Bilinmiyor";
 const isAdmin=()=>!!(rec&&rec.yonetici===true&&rec.onay===true);
@@ -532,8 +536,15 @@ function sikistir(src,cb,mx){
     if(w>M){h=Math.round(h*M/w);w=M}c.width=w;c.height=h;c.getContext("2d").drawImage(im,0,0,w,h);cb(c.toDataURL("image/jpeg",.6))};
   im.src=src;
 }
-function foto(d){fotoData=d;const p=$("prev");p.src=d;p.style.display="block"}
-$("gal").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>sikistir(r.result,foto);r.readAsDataURL(f);e.target.value=""};
+const FMAX=6;
+function fotoCiz(){
+  $("fGrid").innerHTML=fotos.map((s,i)=>`<div class="fth"><img src="${s}" alt="Foto ${i+1}" data-z="${i}"><button type="button" class="fx" data-x="${i}" aria-label="Kaldır">✖</button></div>`).join("");
+  $("fSay").textContent=fotos.length?fotos.length+"/"+FMAX+" fotoğraf":"";
+}
+$("fGrid").onclick=e=>{const x=e.target.closest("[data-x]");if(x){fotos.splice(+x.dataset.x,1);fotoCiz();return}
+  const z=e.target.closest("[data-z]");if(z&&window.fvAc)window.fvAc(fotos[+z.dataset.z])};
+function foto(d){if(fotos.length>=FMAX){toast("En fazla "+FMAX+" fotoğraf eklenebilir.");return}fotos.push(d);fotoCiz()}
+$("gal").onchange=e=>{[...e.target.files].forEach(f=>{const r=new FileReader();r.onload=()=>sikistir(r.result,foto);r.readAsDataURL(f)});e.target.value=""};
 $("camO").onclick=async()=>{
   for(const cfg of [{video:{facingMode:{ideal:"environment"}}},{video:true}]){
     try{stream=await navigator.mediaDevices.getUserMedia(cfg);break}catch(e){}
@@ -610,17 +621,19 @@ $("turBtns").onclick=e=>{
 $("turOk").onclick=()=>{const n=$("turNot").value.trim();if(!n){$("turE").textContent="Lütfen ne olduğunu yazın.";return}turBaslat("diger",n)};
 $("turX").onclick=()=>$("dTur").close();
 const safeImg=s=>/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(s||"")?s:"";
+const ekFoto=u=>(Array.isArray(u.fotolar)?u.fotolar:Object.values(u.fotolar||{})).map(safeImg).filter(Boolean);
+const fotoListe=u=>[safeImg(u.foto)].filter(Boolean).concat(ekFoto(u));
 
 /* ---------- Kayıt ---------- */
 function formTemizle(){
-  editId="";fotoData="";
+  editId="";fotos=[];
   ["kg","mu","ur","no","ad","hu","sfi"].forEach(i=>$(i).value="");$("sfe").value="kg";kdvSet("sevk",null);$("pk").value="1";$("tr").valueAsDate=new Date();$("du").value="hazir";
-  $("prev").style.display="none";$("bSave").textContent=M().kayit;$("bCancel").classList.add("hide");
+  fotoCiz();$("bSave").textContent=M().kayit;$("bCancel").classList.add("hide");
 }
 $("bCancel").onclick=formTemizle;
 $("bSave").onclick=async()=>{
   const kg=parseFloat($("kg").value)||0,pk=parseInt($("pk").value)||0;
-  if(!editId&&!fotoData){toast("Önce etiketin fotoğrafını çekin.");return}
+  if(!editId&&!fotos.length){toast("Önce en az bir fotoğraf ekleyin.");return}
   if(kg<=0&&pk<=0){toast("Kilo veya paket sayısını girin.");return}
   if(isAdmin()&&kdvGet("sevk")===null){toast("KDV oranı 0 ile 100 arasında olmalı.");return}
   let adres=$("ad").value.trim(),hu=$("hu").value.trim(),url=safeUrl(hu);
@@ -628,7 +641,7 @@ $("bSave").onclick=async()=>{
   const d={musteri:$("mu").value.trim()||"Etikete Bakınız",urun:$("ur").value.trim()||"Etikete Bakınız",kg,paket:pk,tarih:$("tr").value,durum:$("du").value,not:$("no").value.trim(),adres,haritaUrl:url};
   const b=$("bSave");b.disabled=true;
   try{
-    if(fotoData)d.foto=fotoData;
+    d.foto=fotos[0]||null;d.fotolar=fotos.length>1?fotos.slice(1):null;
     let sid=editId;
     if(editId){d.duzenleyen=ad();await db.ref(M().yol+"/"+editId).update(d)}
     else{d.ekleyen=ad();d.ekleyenUid=user.uid;d.eklenmeTarihi=firebase.database.ServerValue.TIMESTAMP;const nr=db.ref(M().yol).push();sid=nr.key;await nr.set(d)}
@@ -638,11 +651,11 @@ $("bSave").onclick=async()=>{
   b.disabled=false;
 };
 function duzenle(u){
-  editId=u.id;fotoData="";
+  editId=u.id;
   $("mu").value=u.musteri==="Etikete Bakınız"?"":u.musteri||"";$("ur").value=u.urun==="Etikete Bakınız"?"":u.urun||"";
   $("kg").value=u.kg;$("pk").value=u.paket;$("tr").value=u.tarih;$("du").value=u.durum==="sevk_edildi"?"sevk_edilecek":u.durum;
   $("no").value=u.not||"";$("ad").value=u.adres||"";$("hu").value=u.haritaUrl||"";{const f=(fyat.sevk||{})[u.id];$("sfi").value=f?f.tutar:"";$("sfe").value=f?f.esas:"kg";kdvSet("sevk",f)}
-  const p=$("prev");if(safeImg(u.foto)){p.src=u.foto;p.style.display="block"}else p.style.display="none";
+  fotos=fotoListe(u);fotoCiz();
   $("bSave").textContent="💾 Değişiklikleri Kaydet";$("bCancel").classList.remove("hide");window.scrollTo({top:0,behavior:"smooth"});
 }
 function haritaAc(url,adres){
@@ -680,7 +693,7 @@ function kart(u){
   const onb=(u.durum==="sevk_edildi"&&mod==="sevk"&&isAdmin())?`<button class="btn b3" style="grid-column:span 2;padding:14px;font-size:15px" data-a="onay" data-id="${id}">✅ ONAYLA (Dosyalara taşı)</button>`:"";
   return `<div class="item ${c[0]}">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700;color:#64748b">Tarih: ${esc(trDate(u.tarih))}</span><span class="badge ${c[1]}">${c[2]}</span></div>
-  ${safeImg(u.foto)?`<img loading="lazy" src="${safeImg(u.foto)}" alt="Etiket">`:""}
+  ${fotoListe(u).map(s=>`<img loading="lazy" src="${s}" alt="Etiket">`).join("")}
   <div class="grid"><div class="hl"><small>AĞIRLIK</small><b>${esc(fmt(u.kg))} KG</b></div><div class="hl"><small>PAKET / ADET</small><b>${esc(fmt(u.paket))} Adet</b></div></div>
   ${m||p?`<div class="grid" style="margin-top:8px"><div class="info"><small>Müşteri</small><b>${esc(u.musteri)}</b></div><div class="info"><small>Ürün/Ebat</small><b>${esc(u.urun)}</b></div></div>`:""}
   ${u.adres?`<div class="addr">📍 <b>Teslimat adresi:</b> ${esc(u.adres)}</div>`:""}
@@ -1382,7 +1395,7 @@ function dDetay(d){
     ${d.teslimEden?`<div class="who" style="color:#2563eb;font-weight:700">Teslim eden: ${esc(d.teslimEden)}${d.irsaliyeTarihi?" · "+esc(dTam(d.irsaliyeTarihi)):""}</div>`:""}
     <div class="who" style="color:#0f766e;font-weight:700">✅ Onaylayan: ${esc(d.onaylayan||"-")}${d.onayTarihi?" · "+esc(dTam(d.onayTarihi)):""}</div>
     ${isAdmin()?sFyHtml(d):""}
-    <div class="acts s">${d.fotoVar?`<button class="btn b6" data-a="dfoto" data-p="foto" data-id="${id}">🏷️ Etiket fotoğrafı</button>`:""}${d.irsVar?`<button class="btn b4" data-a="dfoto" data-p="irsaliye" data-id="${id}">${ic} ${esc(tn)} fotoğrafı</button>`:""}</div>
+    <div class="acts s">${d.fotoVar?`<button class="btn b6" data-a="dfoto" data-p="foto" data-id="${id}">🏷️ Etiket fotoğrafı</button>`:""}${Array.from({length:+d.fotoSayi||0},(_,i)=>`<button class="btn b6" data-a="dfoto" data-p="fotolar/${i}" data-id="${id}">🏷️ Foto ${i+2}</button>`).join("")}${d.irsVar?`<button class="btn b4" data-a="dfoto" data-p="irsaliye" data-id="${id}">${ic} ${esc(tn)} fotoğrafı</button>`:""}</div>
     ${isAdmin()?`<div class="acts"><button class="btn b6" data-a="dgeri" data-id="${id}">↩️ Onayı kaldır</button><button class="btn b5" data-a="dsil" data-id="${id}">🗑️ Sil</button></div>`:""}
   </div>`;
 }
@@ -1405,19 +1418,21 @@ async function dosFoto(id,p){
   if(window.fvAc)window.fvAc(dFoto[k]);
 }
 async function dosyayaTasi(u){
-  const L=Object.assign({},u);delete L.id;delete L.foto;delete L.irsaliye;
-  L.fotoVar=!!safeImg(u.foto);L.irsVar=!!safeImg(u.irsaliye);
+  const L=Object.assign({},u);delete L.id;delete L.foto;delete L.irsaliye;delete L.fotolar;
+  L.fotoVar=!!safeImg(u.foto);L.irsVar=!!safeImg(u.irsaliye);L.fotoSayi=ekFoto(u).length;
   L.onayTarihi=firebase.database.ServerValue.TIMESTAMP;L.onaylayan=ad();
   const up={["dosyalar/"+u.id]:L,["urunler/"+u.id]:null};
   if(L.fotoVar)up["dosyaFoto/"+u.id+"/foto"]=u.foto;
   if(L.irsVar)up["dosyaFoto/"+u.id+"/irsaliye"]=u.irsaliye;
+  if(L.fotoSayi)up["dosyaFoto/"+u.id+"/fotolar"]=ekFoto(u);
   await db.ref().update(up);
   toast("✓ Onaylandı, Dosyalar bölümüne taşındı");
 }
 async function dosyaGeri(d){
   const s=await db.ref("dosyaFoto/"+d.id).once("value"),P=s.val()||{},R=Object.assign({},d);
-  ["id","onayTarihi","onaylayan","fotoVar","irsVar"].forEach(k=>delete R[k]);
+  ["id","onayTarihi","onaylayan","fotoVar","irsVar","fotoSayi"].forEach(k=>delete R[k]);
   if(safeImg(P.foto))R.foto=P.foto;if(safeImg(P.irsaliye))R.irsaliye=P.irsaliye;
+  {const ek=ekFoto(P);if(ek.length)R.fotolar=ek}
   await db.ref().update({["urunler/"+d.id]:R,["dosyalar/"+d.id]:null,["dosyaFoto/"+d.id]:null});
   dAcik.delete(d.id);
   toast("Onay kaldırıldı, Sevk Edilenler'e geri alındı");
