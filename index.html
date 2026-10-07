@@ -711,7 +711,7 @@ function kart(u){
   <div class="who">Kaydeden: ${esc(u.ekleyen||"Bilinmiyor")}${u.duzenleyen?" · Son düzenleyen: "+esc(u.duzenleyen):""}</div>
   ${u.teslimEden?`<div class="who" style="color:#2563eb;font-weight:700">${M().teslim}: ${esc(u.teslimEden)}</div>`:""}
   ${safeImg(u.irsaliye)?`<button type="button" class="dosya" data-a="irs" data-id="${id}"><img class="th" src="${safeImg(u.irsaliye)}" alt=""><div class="dm"><div>${turEtiket(u)}</div><div class="dd">${u.irsaliyeTarihi?esc(new Date(u.irsaliyeTarihi).toLocaleString("tr-TR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})):""}${u.irsaliyeCeken?" · "+esc(u.irsaliyeCeken):""}</div></div><span class="dz">🔍</span></button>`:""}
-  <div class="acts">${onb}${nx}${eb}${db2}</div></div>`;
+  <div class="acts">${onb}${u.isEmriNo&&u.durum==="hazir"&&mod==="sevk"?`<button class="btn b2" style="grid-column:span 2" data-a="isgeri" data-id="${id}">↩️ İş emrine geri al (Biten)</button>`:""}${nx}${eb}${db2}</div></div>`;
 }
 function listele(){
   if(!started)return;
@@ -728,6 +728,7 @@ $("liste").onclick=async e=>{
     else if(b.dataset.a==="irs"){const g=safeImg(u.irsaliye);if(g&&window.fvAc)window.fvAc(g)}
     else if(b.dataset.a==="onay"){if(isAdmin()&&confirm("Bu sevk onaylansın ve Dosyalar bölümüne taşınsın mı?"))await dosyayaTasi(u)}
     else if(b.dataset.a==="wa")waGonder(u);
+    else if(b.dataset.a==="isgeri")await isGeri(u);
     else if(b.dataset.a==="map")haritaAc(u.haritaUrl,u.adres);
     else if(b.dataset.a==="durum"&&mod==="sevk"&&b.dataset.to==="sevk_edildi"){turAc(u)}
     else if(b.dataset.a==="durum"){const up={durum:b.dataset.to};up.teslimEden=b.dataset.to==="sevk_edildi"?ad():null;await db.ref(M().yol+"/"+u.id).update(up)}
@@ -739,6 +740,25 @@ $("bCsv").onclick=()=>{
   const r=[["Tarih","Müşteri","Ürün","Kg","Adet","Adres","Not","Kaydeden"].concat(isAdmin()?["Fiyat (₺)","Esas","KDV %","Tutar (₺)","KDV (₺)","Toplam (₺)"]:[]).map(q).join(";")].concat(filtreli().map(u=>[q(trDate(u.tarih)),q(u.musteri),q(u.urun),n(u.kg),n(u.paket),q(u.adres),q(u.not),q(u.ekleyen)].concat(isAdmin()?sFyCsv(u):[]).join(";")));
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+r.join("\r\n")],{type:"text/csv;charset=utf-8"}));a.download=mod+"-"+tab+".csv";a.click();
 };
+
+/* ---------- Hazır üründen iş emrine (BİTEN) geri alma ---------- */
+async function isGeri(u){
+  if(!confirm("Bu ürün iş emrine geri alınsın ve İş Emirleri > BİTEN bölümüne dönsün mü?"))return;
+  let e=null;
+  if(u.isEmriId){const s=await db.ref("isEmirleri/"+u.isEmriId).once("value");if(s.exists())e=Object.assign({id:u.isEmriId},s.val())}
+  if(!e&&u.isEmriNo){const s=await db.ref("isEmirleri").orderByChild("eklenmeTarihi").limitToLast(300).once("value"),v=s.val()||{},k=Object.keys(v).find(x=>v[x].no===u.isEmriNo);if(k)e=Object.assign({id:k},v[k])}
+  if(!e){toast("Bağlı iş emri bulunamadı (silinmiş olabilir).");return}
+  let keys=e.aktarKeys?Object.keys(e.aktarKeys):[];if(!keys.includes(u.id))keys=[u.id];
+  const up={};
+  for(const k of keys){
+    const [a,d]=await Promise.all([db.ref("urunler/"+k).once("value"),db.ref("dosyalar/"+k).once("value")]);
+    if(d.exists()){toast("Bu iş emrinin bir kısmı onaylanıp Dosyalar'a taşınmış, geri alınamaz.");return}
+    if(a.exists()){if(a.val().durum!=="hazir"){toast("Bu iş emrinin bir kısmı sevk listesine alınmış. Önce hepsini Hazır Ürünlere geri alın.");return}up["urunler/"+k]=null}
+  }
+  up["isEmirleri/"+e.id+"/aktarildi"]=null;up["isEmirleri/"+e.id+"/aktarTarih"]=null;up["isEmirleri/"+e.id+"/aktarKeys"]=null;
+  await db.ref().update(up);
+  toast("✓ "+(e.no||"İş emri")+" BİTEN bölümüne geri alındı");
+}
 
 /* ---------- Yönetici paneli ---------- */
 async function kullanicilar(){
@@ -1485,8 +1505,8 @@ $("iTabs").onclick=e=>{const b=e.target.closest("button[data-t]");if(b){iTab=b.d
 function isListele(){
   if(panel!=="is")return;
   const q=$("iq").value.toLowerCase().trim();
-  $("iTabs").innerHTML=AS.map(([k,l])=>{const n=isE.filter(e=>e.asama===k).length;return `<button data-t="${k}" style="font-size:10px" class="${k===iTab?"on":""}">${l}${k!=="bitti"&&n?" ("+n+")":""}</button>`}).join("");
-  const L=isE.filter(e=>e.asama===iTab&&(!q||[e.no,e.musteri,e.stok,e.isAdi].some(x=>(x||"").toLowerCase().includes(q))));
+  $("iTabs").innerHTML=AS.map(([k,l])=>{const n=isE.filter(e=>e.asama===k&&!e.aktarildi).length;return `<button data-t="${k}" style="font-size:10px" class="${k===iTab?"on":""}">${l}${k!=="bitti"&&n?" ("+n+")":""}</button>`}).join("");
+  const L=isE.filter(e=>e.asama===iTab&&!e.aktarildi&&(!q||[e.no,e.musteri,e.stok,e.isAdi].some(x=>(x||"").toLowerCase().includes(q))));
   $("iList").innerHTML=L.length?L.map(isKart).join(""):'<div class="empty">Bu aşamada iş emri yok.</div>';
 }
 function isKart(e){
@@ -1516,12 +1536,12 @@ $("iList").onclick=async ev=>{
       const P=Array.isArray(d.kalem)?d.kalem.map((x,i)=>({kg:+(x&&x.kg)||0,paket:+(x&&x.paket)||0,c:C[i]||{}})).filter(x=>x.kg>0||x.paket>0):[{kg:+d.kg||0,paket:+d.paket||0,c:C[0]||{}}];
       if(!P.length||P.every(x=>x.kg<=0&&x.paket<=0)){toast("Depo girişi boş.");return}
       if(!confirm(e.no+" hazır ürünlere aktarılsın mı?\n"+P.map(x=>(x.c.en||"-")+": "+x.kg+" kg, "+x.paket+" paket").join("\n")))return;
-      const up={};
+      const up={},K={};
       P.forEach(x=>{const key=db.ref("urunler").push().key;
-        up["urunler/"+key]={musteri:e.musteri||"Etikete Bakınız",urun:((e.stok||"")+(x.c.en?" "+x.c.en:""))||"Etikete Bakınız",kg:x.kg,paket:x.paket,tarih:bugun(),durum:"hazir",not:"İş emri "+e.no+(e.fx?" · "+e.fx:""),adres:"",haritaUrl:"",ekleyen:ad(),ekleyenUid:user.uid,eklenmeTarihi:TS,isEmriNo:e.no}});
-      up["isEmirleri/"+e.id+"/aktarildi"]=true;up["isEmirleri/"+e.id+"/aktarTarih"]=TS;
+        up["urunler/"+key]={musteri:e.musteri||"Etikete Bakınız",urun:((e.stok||"")+(x.c.en?" "+x.c.en:""))||"Etikete Bakınız",kg:x.kg,paket:x.paket,tarih:bugun(),durum:"hazir",not:"İş emri "+e.no+(e.fx?" · "+e.fx:""),adres:"",haritaUrl:"",ekleyen:ad(),ekleyenUid:user.uid,eklenmeTarihi:TS,isEmriNo:e.no,isEmriId:e.id};K[key]=true});
+      up["isEmirleri/"+e.id+"/aktarildi"]=true;up["isEmirleri/"+e.id+"/aktarTarih"]=TS;up["isEmirleri/"+e.id+"/aktarKeys"]=K;
       await db.ref().update(up);
-      toast("✓ Hazır ürünlere aktarıldı"+(P.length>1?" ("+P.length+" kayıt)":""));
+      toast("✓ Sevkiyat > Hazır ürünlere aktarıldı"+(P.length>1?" ("+P.length+" kayıt)":""));
     }
     else if(a==="edit")iAc(e);
     else if(a==="geri"&&i>0)await db.ref("isEmirleri/"+e.id).update({asama:o[i-1]});
