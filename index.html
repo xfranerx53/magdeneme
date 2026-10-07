@@ -199,7 +199,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
     <div class="full"><details><summary style="font-size:11px;font-weight:700;color:#64748b;cursor:pointer">➕ Opsiyonel: Müşteri / Ürün adı</summary>
       <div class="grid" style="margin-top:8px">
         <div><label id="lMu">Müşteri</label><input id="mu" placeholder="Örn: Güneli Fırın"></div>
-        <div><label>Ürün / Ebat</label><input id="ur" placeholder="Örn: Kulplu Poşet 32x40"></div>
+        <div><label>Ürün / Ebat</label><textarea id="ur" rows="2" placeholder="Örn: Kulplu Poşet 32x40"></textarea></div>
       </div></details></div>
     <div><label>Tarih</label><input type="date" id="tr"></div>
     <div><label>Durum</label><select id="du"><option value="hazir">SEVKİYATA HAZIR</option><option value="sevk_edilecek">SEVK EDİLECEK</option></select></div>
@@ -702,7 +702,7 @@ function kart(u){
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700;color:#64748b">Tarih: ${esc(trDate(u.tarih))}</span><span class="badge ${c[1]}">${c[2]}</span></div>
   ${fotoListe(u).map(s=>`<img loading="lazy" src="${s}" alt="Etiket">`).join("")}
   <div class="grid"><div class="hl"><small>AĞIRLIK</small><b>${esc(fmt(u.kg))} KG</b></div><div class="hl"><small>PAKET / ADET</small><b>${esc(fmt(u.paket))} Adet</b></div></div>
-  ${m||p?`<div class="grid" style="margin-top:8px"><div class="info"><small>Müşteri</small><b>${esc(u.musteri)}</b></div><div class="info"><small>Ürün/Ebat</small><b>${esc(u.urun)}</b></div></div>`:""}
+  ${m||p?`<div class="grid" style="margin-top:8px"><div class="info"><small>Müşteri</small><b>${esc(u.musteri)}</b></div><div class="info"><small>Ürün/Ebat</small><b style="white-space:pre-line">${esc(u.urun)}</b></div></div>`:""}
   ${u.adres?`<div class="addr">📍 <b>Teslimat adresi:</b> ${esc(u.adres)}</div>`:""}
   ${u.haritaUrl||u.adres?`<button class="btn b7" data-a="map" data-id="${id}">🚀 Yol Tarifi Al</button>`:""}
   <button class="btn b3" data-a="wa" data-id="${id}">📲 WhatsApp ile paylaş</button>
@@ -1533,15 +1533,16 @@ $("iList").onclick=async ev=>{
     if(a==="yaz")isYazdir(e);
     else if(a==="aktar"){
       const d=(e.log&&e.log.depo)||{},C=icols(e);
-      const P=Array.isArray(d.kalem)?d.kalem.map((x,i)=>({kg:+(x&&x.kg)||0,paket:+(x&&x.paket)||0,c:C[i]||{}})).filter(x=>x.kg>0||x.paket>0):[{kg:+d.kg||0,paket:+d.paket||0,c:C[0]||{}}];
+      const P=Array.isArray(d.kalem)?d.kalem.map((x,i)=>({i,kg:+(x&&x.kg)||0,paket:+(x&&x.paket)||0,c:C[i]||{}})).filter(x=>x.kg>0||x.paket>0):[{i:0,kg:+d.kg||0,paket:+d.paket||0,c:C[0]||{}}];
       if(!P.length||P.every(x=>x.kg<=0&&x.paket<=0)){toast("Depo girişi boş.");return}
       if(!confirm(e.no+" hazır ürünlere aktarılsın mı?\n"+P.map(x=>(x.c.en||"-")+": "+x.kg+" kg, "+x.paket+" paket").join("\n")))return;
-      const up={},K={};
-      P.forEach(x=>{const key=db.ref("urunler").push().key;
-        up["urunler/"+key]={musteri:e.musteri||"Etikete Bakınız",urun:((e.stok||"")+(x.c.en?" "+x.c.en:""))||"Etikete Bakınız",kg:x.kg,paket:x.paket,tarih:bugun(),durum:"hazir",not:"İş emri "+e.no+(e.fx?" · "+e.fx:""),adres:"",haritaUrl:"",ekleyen:ad(),ekleyenUid:user.uid,eklenmeTarihi:TS,isEmriNo:e.no,isEmriId:e.id};K[key]=true});
+      const up={},K={},key=db.ref("urunler").push().key;
+      const lines=P.map(x=>[x.i+1,x.c.en,x.c.boy].filter(v=>v!==undefined&&v!==null&&String(v).trim()!=="").join(" - "));
+      const tkg=Math.round(P.reduce((a,x)=>a+x.kg,0)*1000)/1000,tpk=P.reduce((a,x)=>a+x.paket,0);
+      up["urunler/"+key]={musteri:e.musteri||"Etikete Bakınız",urun:((e.stok||"")+(lines.length?"\n"+lines.join("\n"):""))||"Etikete Bakınız",kg:tkg,paket:tpk,tarih:bugun(),durum:"hazir",not:"İş emri "+e.no+(e.fx?" · "+e.fx:""),adres:"",haritaUrl:"",ekleyen:ad(),ekleyenUid:user.uid,eklenmeTarihi:TS,isEmriNo:e.no,isEmriId:e.id};K[key]=true;
       up["isEmirleri/"+e.id+"/aktarildi"]=true;up["isEmirleri/"+e.id+"/aktarTarih"]=TS;up["isEmirleri/"+e.id+"/aktarKeys"]=K;
       await db.ref().update(up);
-      toast("✓ Sevkiyat > Hazır ürünlere aktarıldı"+(P.length>1?" ("+P.length+" kayıt)":""));
+      toast("✓ Sevkiyat > Hazır ürünlere aktarıldı");
     }
     else if(a==="edit")iAc(e);
     else if(a==="geri"&&i>0)await db.ref("isEmirleri/"+e.id).update({asama:o[i-1]});
