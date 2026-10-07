@@ -417,6 +417,13 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
   <div class="err" id="iE" style="margin-top:8px"></div>
   <div style="display:flex;gap:8px"><button class="btn b6" id="iNo2">Vazgeç</button><button class="btn b1" id="iOk">Kaydet</button></div>
 </dialog>
+<dialog id="dDepo">
+  <h3 id="dpT" style="margin-bottom:4px">Depoya giriş</h3>
+  <p class="mut" style="font-size:11px;margin-bottom:8px">Her sipariş sütunu için depoya giren kg ve paket / koli sayısını yazın. Boş bıraktığınız sütun kaydedilmez.</p>
+  <div id="dpRows"></div>
+  <div class="err" id="dpE" style="margin-top:6px"></div>
+  <div style="display:flex;gap:8px"><button class="btn b6" id="dpNo">Vazgeç</button><button class="btn b3" id="dpOk">Kaydet → BİTEN</button></div>
+</dialog>
 <div id="toast"></div>
 
 <script>
@@ -1485,7 +1492,7 @@ function isListele(){
 function isKart(e){
   const id=esc(e.id),o=asOrd(e),i=o.indexOf(e.asama),nx=o[i+1],canDel=isAdmin()||(e.ekleyenUid&&e.ekleyenUid===user.uid);
   const C=icols(e).map(c=>`<div class="info" style="margin-top:4px"><b>${esc(fmt(c.kg))} kg</b> · ${esc(c.en||"-")} · ${esc(c.mikron||"-")}µ · ${esc(c.korona||"-")}${c.boy?" · boy "+esc(c.boy):""}</div>`).join("");
-  const lg=Object.entries(e.log||{}).map(([k,v])=>`<div class="who">${esc(ASL[k]||k)}: ${v.kg!=null?esc(fmt(v.kg))+" kg":""}${v.paket?" · "+esc(fmt(v.paket))+" adet":""} — ${esc(v.kim||"")} ${esc(tarih(v.zaman))}</div>`).join("");
+  const lg=Object.entries(e.log||{}).map(([k,v])=>`<div class="who">${esc(ASL[k]||k)}: ${v.kg!=null?esc(fmt(v.kg))+" kg":""}${v.paket?" · "+esc(fmt(v.paket))+" adet":""} — ${esc(v.kim||"")} ${esc(tarih(v.zaman))}${k==="depo"&&Array.isArray(v.kalem)?"<br>"+v.kalem.map((x,i)=>{const c=icols(e)[i]||{};return esc((i+1)+". sütun"+(c.en?" ("+c.en+")":"")+": "+fmt(x&&x.kg)+" kg · "+fmt(x&&x.paket)+" paket")}).join("<br>"):""}</div>`).join("");
   return `<div class="item sevk-border">
   <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:16px">${esc(e.no)}</b><span class="badge badge-sevk">${esc(ASL[e.asama]||e.asama)}</span></div>
   <div class="sub" style="font-size:13px;color:#0f172a;font-weight:700">${esc(e.musteri)}${e.isAdi?" · "+esc(e.isAdi):""}</div>
@@ -1505,31 +1512,49 @@ $("iList").onclick=async ev=>{
   try{
     if(a==="yaz")isYazdir(e);
     else if(a==="aktar"){
-      const d=(e.log&&e.log.depo)||{},kg=+d.kg||0,pk=+d.paket||0;
-      if(!confirm(e.no+" hazır ürünlere aktarılsın mı? ("+kg+" kg, "+pk+" paket)"))return;
-      const c0=icols(e)[0]||{},key=db.ref("urunler").push().key;
-      const U={musteri:e.musteri||"Etikete Bakınız",urun:((e.stok||"")+(c0.en?" "+c0.en:""))||"Etikete Bakınız",kg,paket:pk,tarih:bugun(),durum:"hazir",not:"İş emri "+e.no+(e.fx?" · "+e.fx:""),adres:"",haritaUrl:"",ekleyen:ad(),ekleyenUid:user.uid,eklenmeTarihi:TS,isEmriNo:e.no};
-      await db.ref().update({["urunler/"+key]:U,["isEmirleri/"+e.id+"/aktarildi"]:true,["isEmirleri/"+e.id+"/aktarTarih"]:TS});
-      toast("✓ Hazır ürünlere aktarıldı");
+      const d=(e.log&&e.log.depo)||{},C=icols(e);
+      const P=Array.isArray(d.kalem)?d.kalem.map((x,i)=>({kg:+(x&&x.kg)||0,paket:+(x&&x.paket)||0,c:C[i]||{}})).filter(x=>x.kg>0||x.paket>0):[{kg:+d.kg||0,paket:+d.paket||0,c:C[0]||{}}];
+      if(!P.length||P.every(x=>x.kg<=0&&x.paket<=0)){toast("Depo girişi boş.");return}
+      if(!confirm(e.no+" hazır ürünlere aktarılsın mı?\n"+P.map(x=>(x.c.en||"-")+": "+x.kg+" kg, "+x.paket+" paket").join("\n")))return;
+      const up={};
+      P.forEach(x=>{const key=db.ref("urunler").push().key;
+        up["urunler/"+key]={musteri:e.musteri||"Etikete Bakınız",urun:((e.stok||"")+(x.c.en?" "+x.c.en:""))||"Etikete Bakınız",kg:x.kg,paket:x.paket,tarih:bugun(),durum:"hazir",not:"İş emri "+e.no+(e.fx?" · "+e.fx:""),adres:"",haritaUrl:"",ekleyen:ad(),ekleyenUid:user.uid,eklenmeTarihi:TS,isEmriNo:e.no}});
+      up["isEmirleri/"+e.id+"/aktarildi"]=true;up["isEmirleri/"+e.id+"/aktarTarih"]=TS;
+      await db.ref().update(up);
+      toast("✓ Hazır ürünlere aktarıldı"+(P.length>1?" ("+P.length+" kayıt)":""));
     }
     else if(a==="edit")iAc(e);
     else if(a==="geri"&&i>0)await db.ref("isEmirleri/"+e.id).update({asama:o[i-1]});
     else if(a==="del"&&confirm(e.no+" silinsin mi?"))await db.ref("isEmirleri/"+e.id).remove();
     else if(a==="ileri"&&i>=0&&i<o.length-1){
-      if(e.asama==="depo"){
-        const s1=prompt("Depoya giren toplam kg:","");if(s1===null)return;
-        const s2=prompt("Paket / koli adedi:","1");if(s2===null)return;
-        const kg=parseFloat(s1.replace(",","."))||0,pk=parseInt(s2)||0;
-        if(kg<=0&&pk<=0){toast("Kg veya paket girin.");return}
-        await db.ref("isEmirleri/"+e.id).update({asama:"bitti",bekleAktar:true,["log/depo"]:{kg,paket:pk,kim:ad(),zaman:TS}});
-        toast("✓ BİTEN'e alındı. Hazır ürünlere aktarmak için butona bas.");
-      }else{
+      if(e.asama==="depo"){depoAc(e);return}else{
         const s=prompt("Bu aşamada çıkan kg (boş bırakılabilir):","");if(s===null)return;
         const kg=parseFloat(s.replace(",","."));
         await db.ref("isEmirleri/"+e.id).update({asama:o[i+1],["log/"+e.asama]:{kg:isNaN(kg)?null:kg,kim:ad(),zaman:TS}});
       }
     }
   }catch(err){toast(errText(err))}
+};
+var depoE=null;
+function depoAc(e){
+  depoE=e;const C=icols(e);$("dpT").textContent=e.no+" — depoya giriş";$("dpE").textContent="";
+  $("dpRows").innerHTML=(C.length?C:[{}]).map((c,i)=>`<div style="border:1.5px solid #e2e8f0;border-radius:8px;padding:8px;margin-bottom:8px"><b style="font-size:13px">${i+1}. sütun${c.en?" · "+esc(c.en):""}${c.kg?" · sipariş "+esc(fmt(c.kg))+" kg":""}</b><div class="grid" style="margin-top:6px"><input data-i="${i}" data-f="kg" type="number" inputmode="decimal" min="0" step="any" placeholder="Kg"><input data-i="${i}" data-f="paket" type="number" inputmode="numeric" min="0" step="1" placeholder="Paket / koli"></div></div>`).join("");
+  $("dDepo").showModal();
+}
+$("dpNo").onclick=()=>$("dDepo").close();
+$("dpOk").onclick=async()=>{
+  const e=depoE;if(!e)return;const n=Math.max(icols(e).length,1),K=[];let tk=0,tp=0;
+  const v=(i,f)=>$("dpRows").querySelector(`[data-i="${i}"][data-f="${f}"]`).value;
+  for(let i=0;i<n;i++){const kg=parseFloat(String(v(i,"kg")).replace(",","."))||0,pk=parseInt(v(i,"paket"))||0;
+    if(kg<0||pk<0){$("dpE").textContent="Değerler 0 veya daha büyük olmalı.";return}
+    K.push({kg,paket:pk});tk+=kg;tp+=pk}
+  if(tk<=0&&tp<=0){$("dpE").textContent="En az bir sütuna kg veya paket yazın.";return}
+  $("dpOk").disabled=true;
+  try{
+    await db.ref("isEmirleri/"+e.id).update({asama:"bitti",bekleAktar:true,["log/depo"]:{kg:Math.round(tk*1000)/1000,paket:tp,kalem:K,kim:ad(),zaman:firebase.database.ServerValue.TIMESTAMP}});
+    $("dDepo").close();toast("✓ BİTEN'e alındı. Hazır ürünlere aktarmak için butona bas.");
+  }catch(err){$("dpE").textContent=errText(err)}
+  $("dpOk").disabled=false;
 };
 /* Önceki iş emrinden sonraki seri no: MG-0945 -> MG-0946 */
 function iNext(){
