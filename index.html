@@ -1537,7 +1537,7 @@ $("iList").onclick=async ev=>{
       if(!P.length||P.every(x=>x.kg<=0&&x.paket<=0)){toast("Depo girişi boş.");return}
       if(!confirm(e.no+" hazır ürünlere aktarılsın mı?\n"+P.map(x=>(x.c.en||"-")+": "+x.kg+" kg, "+x.paket+" paket").join("\n")))return;
       const up={},K={},key=db.ref("urunler").push().key;
-      const lines=P.map(x=>[x.i+1,x.c.en,x.c.boy].filter(v=>v!==undefined&&v!==null&&String(v).trim()!=="").join(" - "));
+      const lines=P.map(x=>[x.i+1,x.c.en,x.c.boy].filter(v=>v!==undefined&&v!==null&&String(v).trim()!=="").join(" - ")+": "+[x.kg>0?fmt(x.kg)+" kg":"",x.paket>0?x.paket+" paket":""].filter(Boolean).join(" · "));
       const tkg=Math.round(P.reduce((a,x)=>a+x.kg,0)*1000)/1000,tpk=P.reduce((a,x)=>a+x.paket,0);
       up["urunler/"+key]={musteri:e.musteri||"Etikete Bakınız",urun:((e.stok||"")+(lines.length?"\n"+lines.join("\n"):""))||"Etikete Bakınız",kg:tkg,paket:tpk,tarih:bugun(),durum:"hazir",not:"İş emri "+e.no+(e.fx?" · "+e.fx:""),adres:"",haritaUrl:"",ekleyen:ad(),ekleyenUid:user.uid,eklenmeTarihi:TS,isEmriNo:e.no,isEmriId:e.id};K[key]=true;
       up["isEmirleri/"+e.id+"/aktarildi"]=true;up["isEmirleri/"+e.id+"/aktarTarih"]=TS;up["isEmirleri/"+e.id+"/aktarKeys"]=K;
