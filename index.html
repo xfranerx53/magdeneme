@@ -1629,9 +1629,9 @@ function isYazdir(e){
   P.innerHTML=`<div class="prow">${h}<div class="pcut"></div>${isForm(e,true)}</div>`;
   /* Sayfaya sığan en büyük yazı boyutunu bul (ekranda ölç, sonra yazdır) */
   P.classList.add("meas");
-  const f=P.querySelector(".pf:last-child"),hedef=184*96/25.4;
+  const f=P.querySelector(".pf:last-child"),hedef=192*96/25.4;
   let z=1.25;P.style.setProperty("--z",z);
-  while(f.offsetHeight>hedef&&z>0.45){z=Math.round((z-0.03)*100)/100;P.style.setProperty("--z",z)}
+  while(f.offsetHeight>hedef&&z>0.6){z=Math.round((z-0.03)*100)/100;P.style.setProperty("--z",z)}
   P.classList.remove("meas");
   const t=document.title;document.title=(e.no||"is-emri")+" - iş takip formu";
   window.onafterprint=()=>{document.title=t;P.innerHTML=""};
@@ -1736,18 +1736,14 @@ try{
 </script>
 <style>
 #prn{display:none;--z:1}
-#prn.meas{display:block;position:absolute;left:-10000px;top:0;width:277mm}
+#prn.meas{display:block;position:absolute;left:-10000px;top:0;width:285mm}
 @media print{
   @page{size:A4 landscape;margin:6mm}
   html,body{background:#fff!important;margin:0!important;padding:0!important}
   body>*:not(#prn){display:none!important}
-  #prn{display:block!important;width:100%;max-height:186mm;overflow:hidden;break-inside:avoid;page-break-after:avoid}
+  #prn{display:block!important}
 }
-/* Tarayıcı kağıdı dikey bırakırsa (örn. telefon/iOS) formu 90° çevirip dikey sayfaya sığdır */
-@media print and (orientation:portrait){
-  #prn{position:absolute;top:0;left:0;width:277mm;height:186mm;max-height:none;transform-origin:0 0;transform:translateX(186mm) rotate(90deg)}
-}
-#prn .prow{display:flex;width:100%;max-height:186mm;overflow:hidden;color:#000;font-family:Arial,Helvetica,sans-serif;font-weight:700}
+#prn .prow{display:flex;width:285mm;height:196mm;color:#000;font-family:Arial,Helvetica,sans-serif;font-weight:700}
 #prn .pf{flex:1 1 0;width:0;min-width:0;align-self:flex-start;padding:0 calc(3mm*var(--z));box-sizing:border-box;font-size:calc(13pt*var(--z))}
 #prn .pcut{flex:0 0 0;border-left:1.5px dashed #777;align-self:stretch}
 #prn .ph{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #000;padding-bottom:calc(2mm*var(--z));margin-bottom:calc(2.5mm*var(--z))}
